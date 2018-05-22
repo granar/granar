@@ -1,0 +1,10 @@
+Package: granar
+Title: Generator of Root ANAtomy in R
+Version: 0.0.0.9000
+Authors@R: person("Guillaume", "Lobet", email = "g.lobet@fz-juelich.de", role = c("aut", "cre"))
+Description: Generate a 2D representation of a root cross-section
+Depends: R (>= 3.3.1)
+License: GPL3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1.9000
