@@ -258,6 +258,7 @@ create_anatomy <- function(path = NULL,  # PAth
   cell_size <- vtess$summary
   cell_size$id_cell <- c(1:nrow(cell_size))
   all_cells <- merge(all_cells, cell_size[,c("id_cell", "dir.area")], by="id_cell")
+  all_cells$area <- all_cells$dir.area
   all_cells$dist <- sqrt((all_cells$x - center)^2 + (all_cells$y - center)^2 )
   
   ids <- all_cells$id_cell
@@ -273,7 +274,7 @@ create_anatomy <- function(path = NULL,  # PAth
   rs2 <- rbind(rs2, data.frame(x = rs$x2, y=rs$y2, id_cell = rs$ind1))
   rs2 <- rbind(rs2, data.frame(x = rs$x2, y=rs$y2, id_cell = rs$ind2))
   rs2 <- rbind(rs2, data.frame(x = rs$x1, y=rs$y1, id_cell = rs$ind2))
-  rs2 <- merge(rs2, all_cells[,c("id_cell", "type", "dir.area", "dist", "angle", "radius", "id_layer")], by="id_cell")
+  rs2 <- merge(rs2, all_cells[,c("id_cell", "type", "area", "dist", "angle", "radius", "id_layer")], by="id_cell")
   
   
   # CREATE AERENCHYMA -----
