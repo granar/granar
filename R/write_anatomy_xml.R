@@ -15,9 +15,9 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
                            type = c("exodermis", "epidermis", "endodermis", "cortex", "stele", "xylem", "pericycle"))
   
   xml <- '<?xml version="1.0" encoding="utf-8"?>\n'
-  xml <- paste0(xml, '<crosssimdata>\n')
+  xml <- paste0(xml, '<granardata>\n')
   
-  # Metadata
+  # Write the Metadata
   xml <- paste0(xml, '\t<metadata>\n')
   xml <- paste0(xml, '\t\t<parameters>\n')
   xml <- paste0(xml, '\t\t\t<parameter name="num_cortex" value="',num_cortex,'"/>\n')
@@ -32,7 +32,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, '\t</metadata>\n')
   
   
-  # Cells
+  # Write the cells information
   xml <- paste0(xml, '\t<cells count="',nrow(sim$cells),'">\n')
   sim$nodes <-merge(sim$nodes, cellgroups, by="type")
   temp_wall <- ddply(sim$nodes, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="', 
@@ -44,7 +44,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, '\t</cells>\n')
   
   
-  # Walls
+  # Write the walls information
   xml <- paste0(xml, '\t<walls count="',nrow(sim$walls),'">\n')
   xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
                            '\t\t\t<points>\n',
@@ -54,7 +54,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
                            '\t\t</wall>\n', collapse = ""))
   xml <- paste0(xml, '\t</walls>\n')
   
-  # Groups
+  # Write the cell group informations
   xml <- paste0(xml, '\t<groups>\n')
   xml <- paste0(xml, '\t\t<cellgroups>\n')
   for(i in c(1:nrow(cellgroups))){
@@ -66,7 +66,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, '\t\t</wallgroups>\n')
   xml <- paste0(xml, '\t</groups>\n')
   
-  xml <- paste0(xml, '</crosssimdata>')
+  xml <- paste0(xml, '</granardata>')
   
   if(!is.null(path)){
     cat(xml, file = path)

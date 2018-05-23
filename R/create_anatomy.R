@@ -2,74 +2,108 @@
 #' Create root anatomy
 #'
 #' This function creates a 2D root cross section anatomy based on global parameters
-#' @param random Degree of randomness in the cell positions
+#' @param path Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.
+#' @param parameters Table with the different parameters. Not needed if 'path' is set.  Default = NULL.
+#' @param verbatim Display textual information aboutt he simulation. Default = NULL.
 #' @keywords root
 #' @export
 #' @examples
-#' create_anatomy()
+#' create_anatomy("PATH_TO_XLM_FILE")
 #' 
-create_anatomy <- function(random,
-                     num_cortex,
-                     diam_cortex,
-                     size_stele,
-                     diam_stele,
-                     proportion_aerenchyma,
-                     n_aerenchyma_files,
-                     n_xylem_files,
-                     diam_xylem){
+
+
+create_anatomy <- function(path = NULL,  # PAth
+                           parameters = NULL,
+                           verbatim = F){
+  
+  # Return NULL is no parameters are specified
+  if( is.null(path) & is.null(parameters)){
+    warning("Please specify a parameter set for the simulation")
+    return(NULL)
+  }
+  
+  if(verbatim) message("Loading parameters")
+  
+  if(!is.null(path)){
+    params <- read_param_xml(path)
+  }
+  if(!(is.null(parameters))){
+    params <- parameters
+    
+    # Quality control
+    to_find <- c("planttype", "randomness", "xylem", "phloem", "stele", "endodermis", "exodermis", "epidermis", "aerenchyma", "pericycle", "cortex")
+    for(tf in to_find){
+      if (nrow(params[params$name == tf,]) == 0){
+        warning(paste0("Could not find the '",tf,"' information in the parameter input"))
+        return(NULL)
+      }
+    }
+    cols_to_find <- c("name", "type", "value")
+    for(ctf in cols_to_find){
+      if (is.null(params[[ctf]])){
+        warning(paste0("Could not find the '",ctf,"' column in the parameter input"))
+        return(NULL)
+      }
+    }
+      
+  }
   
   # PARAMETERS -----
-  random_fact <- random / 100
-  
-  
+  random_fact <- params$value[params$name == "randomness"] / 100
+  stele_diameter <- params$value[params$name == "stele" & params$type == "layer_diameter"]
+  n_aerenchyma_files <- params$value[params$name == "aerenchyma" & params$type == "n_files"]
+  proportion_aerenchyma <- params$value[params$name == "aerenchyma" & params$type == "proportion"]
+  n_xylem_files <- params$value[params$name == "xylem" & params$type == "n_files"]
   
   # INITIALIZE LAYERS -----
-  layers <- data.frame("name" = character(0), 
-                       "n_layer" = numeric(0), 
-                       "size" = numeric(0))
   
-  layers <- rbind(layers, data.frame(name="stele", n_layer=1, size=size_stele))
-  layers <- rbind(layers, data.frame(name="pericycle", n_layer=1, size=0.3))
-  layers <- rbind(layers, data.frame(name="endodermis", n_layer=1, size=0.4))
-  layers <- rbind(layers, data.frame(name="cortex", n_layer=num_cortex, size=diam_cortex))
-  layers <- rbind(layers, data.frame(name="exodermis", n_layer=1, size=0.6))
-  layers <- rbind(layers, data.frame(name="epidermis", n_layer=1, size=0.3))
+  if(verbatim) message("Creating cell layers")
+  
+  layers <- params %>% 
+    filter(type %in% c("cell_diameter","n_layers","order")) %>% 
+    spread(type, value) %>% 
+    filter(!is.na(n_layers)) %>% 
+    arrange(order)
   
   # Create and "outside" layer to serve as boundary for the voronoi algorithm.
-  layers <- rbind(layers, data.frame(name="outside", n_layer=1, size=0.3))
+  layers <- rbind(layers, data.frame(name="outside", 
+                                     n_layers=1, 
+                                     cell_diameter=layers$cell_diameter[layers$name == "epidermis"]* 0.5,
+                                     order = max(layers$order)+1))
   
-  layers$n_layer[layers$name == "stele"] <- round((layers$size[layers$name == "stele"]/2) / diam_stele)
-  layers$size[layers$name == "stele"] <- diam_stele
-  
+  # Get the number of cell layers for the stele
+  layers$n_layers[layers$name == "stele"] <- round((stele_diameter/2) / layers$cell_diameter[layers$name == "stele"])
+  #layers$size[layers$name == "stele"] <- diam_stele
+
   
   # Get one row per actual cell layer
   all_layers <- NULL
   for(i in c(1:nrow(layers))){
-    for(j in c(1:layers$n_layer[i])){
+    for(j in c(1:layers$n_layers[i])){
       all_layers <- rbind(all_layers, layers[i,])
     }
   }
   
-  all_layers$radius <- all_layers$size/2 # Base. we update that just now
+  all_layers$radius <- all_layers$cell_diameter / 2 
   all_layers$perim <- all_layers$radius * 2 * pi
   all_layers$n_cell <- 1
   all_layers$angle_inc <- 0
   for(i in c(2:nrow(all_layers))){
     # Update radius
     all_layers$radius[i] <- all_layers$radius[i-1] +  
-      all_layers$size[i-1] / 2 + 
-      all_layers$size[i] / 2
-    if(all_layers$name == "outside"){
+      all_layers$cell_diameter[i-1] / 2 + 
+      all_layers$cell_diameter[i] / 2
+    if(all_layers$name[i] == "outside"){
       all_layers$radius[i] <- all_layers$radius[i-1] +  
-        all_layers$size[i-1] / 2 + 
-        all_layers$size[i] *2
+        all_layers$cell_diameter[i-1] / 2 + 
+        all_layers$cell_diameter[i] / 2
     }
     
     # Update perimeter
     all_layers$perim[i] <- all_layers$radius[i] * 2 * pi
     
     # Update number of cells in the layers
-    all_layers$n_cell[i] <- round(all_layers$perim[i] / all_layers$size[i])
+    all_layers$n_cell[i] <- round(all_layers$perim[i] / all_layers$cell_diameter[i])
     
     # Update the mean angle between cells
     all_layers$angle_inc[i] <- 2 * pi / all_layers$n_cell[i]
@@ -77,7 +111,11 @@ create_anatomy <- function(random,
   
   
   
+  
   # CREATE CELLS ------
+  
+  if(verbatim) message("Creating cells")
+  
   center <- max(all_layers$radius)
   all_cells <- NULL
   k <- 1
@@ -124,9 +162,12 @@ create_anatomy <- function(random,
   # CREATE XYLEM VESSELS -----
   # Create the xylem files
   # Get the extremes
+  
+  if(verbatim) message("Creating xylem vessels")
+  
   xyl <- data.frame(r=numeric(2), d=numeric(2))
   xyl$r <- c(0, max(all_cells$radius[all_cells$type == "stele"]))
-  xyl$d <- c(diam_xylem, diam_stele)
+  xyl$d <- c(params$value[params$type == "max_size" & params$name == "xylem"], layers$cell_diameter[layers$name == "stele"])
   
   # Get the cells in between
   fit <- lm(d ~ r, data=xyl)$coefficients
@@ -198,33 +239,14 @@ create_anatomy <- function(random,
       filter((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 > (all_xylem$d[i]/1)^2 | type == "xylem") # find the cells inside the xylem poles and remove them
   }
   
-  
-  
-  # # Create the xylem cells
-  # for(i in c(1:nrow(all_xylem))){
-  #   cx = all_xylem$x[i]
-  #   cy = all_xylem$y[i]
-  #   radius <- all_xylem$d[i]/2
-  #   angles <- seq(from = 0, to = (2*pi), by = (2*pi)/30)
-  #   x <- cx + (radius * cos(angles))
-  #   y <- cy + (radius * sin(angles))
-  # 
-  #   all_cells <- rbind(all_cells, data.frame(
-  #       angle = angles,
-  #       radius = radius,
-  #       x = x,
-  #       y = y,
-  #       id_layer = 20+i,
-  #       id_cell = 1,
-  #       type = "xylem"
-  #       )
-  #     )
-  #   }
-  
   all_cells$id_cell <- c(1:nrow(all_cells))
   
   
   # CREATE GEOMETRY ------
+  
+  
+  if(verbatim) message("Creating the geometry")
+  
   # Get the voronio data
   vtess <- deldir(all_cells$x, all_cells$y)
   
@@ -255,6 +277,9 @@ create_anatomy <- function(random,
   
   
   # CREATE AERENCHYMA -----
+
+  if(verbatim) message("Killing cells to make aerenchyma")
+  
   angle_inc <- (2 * pi) / n_aerenchyma_files
   angle_range_inc <- (2 * pi * proportion_aerenchyma / 2) / n_aerenchyma_files
   safe_cortex_layer <- min(rs2$id_layer[rs2$type == "cortex"])
@@ -270,20 +295,9 @@ create_anatomy <- function(random,
   
   
   
-  # # TIDY XYLEM ------
-  # #rs3 <- rs2
-  # #rs2 <- rs3
-  # for(i in c(1:nrow(all_xylem))){
-  #   temp <- rs2 %>% 
-  #     filter((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/2)^2)
-  #   minid <- min(temp$id_cell)
-  #   unid <- unique(temp$id_cell)
-  #   rs2$id_cell[rs2$id_cell %in% unid] <- minid
-  #     # filter((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/2)^2)
-  # #   rs2$id_cell[rs2$type == "xylem" & rs2$id_layer == i] <- min(rs2$id_cell[rs2$type == "xylem" & rs2$id_layer == i])
-  # }
-  # 
-  # REORDER ------
+  # # TIDY DATA ------
+  
+  if(verbatim) message("Tidying data before export")
   
   rs1 <- rs2 %>% 
     dplyr::group_by(id_cell) %>% 
@@ -334,24 +348,9 @@ create_anatomy <- function(random,
     mutate(x2 = ifelse(x > xx, xx, x)) %>%
     mutate(y1 = ifelse(x > xx, y, yy)) %>%
     mutate(y2 = ifelse(x > xx, yy, y)) %>%
-    # arrange(sorting) %>% 
     mutate(wall_length = sqrt((x2-x1)^2 + (y2-y1)^2)) %>%
     mutate(wall_length2 = sqrt((xx-x)^2 + (yy-y)^2))# %>% 
-  #filter(wall_length > 0)#
-  # 
-  #   nodes %>% 
-  #     filter(wall_length == 0) %>% 
-  #     select(c(wall_length, wall_length2))
-  #   
-  #   
-  # nodes %>%
-  # #  filter(id_cell == 9) %>%
-  #   # filter(wall_length > 0) %>%
-  #   ggplot() +
-  #   geom_polygon(aes(x1, y1, group=id_cell,  fill=type), alpha=0.5) + 
-  #   geom_segment(aes(x1, y1, xend=x2, yend=y2))
-  
-  
+
   walls <- nodes[!duplicated(nodes[,c('x1', 'x2', 'y1', 'y2')]),] %>% 
     select(c(x1, x2, y1, y2))
   walls$id_wall <- c(1:nrow(walls))
@@ -359,15 +358,6 @@ create_anatomy <- function(random,
   nodes <- merge(nodes, walls, by=c("x1", "x2", "y1", "y2"))
   nodes <- nodes %>% 
     arrange(sorting)
-  
-  
-  # nodes %>%
-  #   filter(id_cell == 9) %>%
-  #   # filter(wall_length > 0) %>%
-  #   ggplot() +
-  #   geom_polygon(aes(x1, y1, group=id_cell,  fill=type)) +
-  #   geom_segment(aes(x1, y1, xend=x2, yend=y2, colour=factor(wall_length)))
-  
   
   
   

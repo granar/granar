@@ -4,17 +4,20 @@
 \alias{create_anatomy}
 \title{Create root anatomy}
 \usage{
-create_anatomy(random, num_cortex, diam_cortex, size_stele, diam_stele,
-  proportion_aerenchyma, n_aerenchyma_files, n_xylem_files, diam_xylem)
+create_anatomy(path = NULL, parameters = NULL, verbatim = F)
 }
 \arguments{
-\item{random}{Degree of randomness in the cell positions}
+\item{path}{Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.}
+
+\item{parameters}{Table with the different parameters. Not needed if 'path' is set.  Default = NULL.}
+
+\item{verbatim}{Display textual information aboutt he simulation. Default = NULL.}
 }
 \description{
 This function creates a 2D root cross section anatomy based on global parameters
 }
 \examples{
-create_anatomy()
+create_anatomy("PATH_TO_XLM_FILE")
 
 }
 \keyword{root}
