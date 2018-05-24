@@ -26,7 +26,7 @@ plot_anatomy <- function(sim=NULL,
           axis.title.x=element_blank(),
           axis.title.y=element_blank())
   
-  if(col != "type"){
+  if(!col %in% c("type", "cell_group")){
     pl <- pl + scale_fill_viridis()
   }
   
