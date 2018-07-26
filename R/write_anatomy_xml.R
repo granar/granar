@@ -11,8 +11,11 @@
 
 write_anatomy_xml <- function(sim = NULL, path = NULL){
   
-  cellgroups <- data.frame(id_group = c(1, 2, 3, 4, 5, 13, 16),
-                           type = c("exodermis", "epidermis", "endodermis", "cortex", "stele", "xylem", "pericycle"))
+  if(is.null(sim)) warning("No simulation found. Please input a GRANAR simulation")
+  if(is.null(path)) warning("No path found to save the XML file")
+  
+  cellgroups <- data.frame(id_group = c(1, 2, 3, 4, 5, 13, 16, 12, 11),
+                           type = c("exodermis", "epidermis", "endodermis", "cortex", "stele", "xylem", "pericycle", "companion_cell", "phloem"))
   
   xml <- '<?xml version="1.0" encoding="utf-8"?>\n'
   xml <- paste0(xml, '<granardata>\n')
@@ -20,21 +23,19 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   # Write the Metadata
   xml <- paste0(xml, '\t<metadata>\n')
   xml <- paste0(xml, '\t\t<parameters>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="num_cortex" value="',num_cortex,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="diam_cortex" value="',diam_cortex,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="size_stele" value="',size_stele,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="diam_stele" value="',diam_stele,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="proportion_aerenchyma" value="',proportion_aerenchyma/100,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="n_aerenchyma_files" value="',n_aerenchyma_files,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="n_xylem_files" value="',n_xylem_files,'"/>\n')
-  xml <- paste0(xml, '\t\t\t<parameter name="diam_xylem" value="',diam_xylem,'"/>\n')
+  xml <- paste0(xml,paste0('\t\t\t<parameter io="',sim$output$io,'" ',
+                            'name="',sim$output$name,'" ',
+                            'type="',sim$output$type,'" ',
+                            'value="',sim$output$value,'"/>\n', collapse = ""))
   xml <- paste0(xml, '\t\t</parameters>\n')
   xml <- paste0(xml, '\t</metadata>\n')
   
-  
   # Write the cells information
   xml <- paste0(xml, '\t<cells count="',nrow(sim$cells),'">\n')
-  sim$nodes <-merge(sim$nodes, cellgroups, by="type")
+    
+  sim$nodes <- merge(sim$nodes, cellgroups, by="type")  %>% 
+    mutate(id_group = id_group.y)
+  
   temp_wall <- ddply(sim$nodes, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="', 
                                                                                 paste(id_wall-1, collapse='"/>\n\t\t\t\t<wall id="'),
                                                                                 '"/>\n'))
@@ -55,10 +56,11 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, '\t</walls>\n')
   
   # Write the cell group informations
+  print(cellgroups)
   xml <- paste0(xml, '\t<groups>\n')
   xml <- paste0(xml, '\t\t<cellgroups>\n')
   for(i in c(1:nrow(cellgroups))){
-    xml <- paste0(xml, '\t\t\t<group id="',cellgroups$id[i],'" name="',cellgroups$name[i],'" />\n')
+    xml <- paste0(xml, '\t\t\t<group id="',cellgroups$id_group[i],'" name="',cellgroups$type[i],'" />\n')
   }
   xml <- paste0(xml, '\t\t</cellgroups>\n')
   xml <- paste0(xml, '\t\t<wallgroups>\n')

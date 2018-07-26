@@ -74,7 +74,7 @@ create_anatomy <- function(path = NULL,  # PAth
   # Create and "outside" layer to serve as boundary for the voronoi algorithm.
   layers <- rbind(layers, data.frame(name="outside", 
                                      n_layers=1, 
-                                     cell_diameter=layers$cell_diameter[layers$name == "epidermis"]* 0.5,
+                                     cell_diameter=layers$cell_diameter[layers$name == "epidermis"]* 1,
                                      order = max(layers$order)+1))
   
   # Get the number of cell layers for the stele
@@ -350,6 +350,10 @@ create_anatomy <- function(path = NULL,  # PAth
     # all_cells <- all_cells %>%
     # filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
   }
+  
+
+  
+  
   # 
   # all_cells$id_group <- 0
   # angle_seq <- seq(from = 0, to = (2*pi), by = (2 * pi) / 5)
@@ -435,6 +439,8 @@ create_anatomy <- function(path = NULL,  # PAth
   t7 <- proc.time()
   
   
+
+  
   # # TIDY DATA ------
   
   if(verbatim) message("Tidying data before export")
@@ -451,6 +457,7 @@ create_anatomy <- function(path = NULL,  # PAth
   # Merge the adgecent xylem cells
   if(verbatim) message("Merging xylem vessels")
   groups <- NULL
+  lost_points <- NULL
   for(i in c(1:max(rs1$id_group))){
     temp <- rs1 %>% 
       filter(id_group == i) %>% 
@@ -458,7 +465,13 @@ create_anatomy <- function(path = NULL,  # PAth
       filter(row_number() == 1)
     
     if(nrow(temp) > 2){
-      hull <- with(temp, ahull(x, y, alpha=1))
+      hull <- with(temp, ahull(x, y, alpha=1)) # Create a convex hull aroud the exiting xylem cells TODO
+      
+      # Get the points that were removed with the convexhull. This will be used to track them later and moved them to the edge
+      rem <- c(1:nrow(temp))
+      rem <- rem[! rem %in% hull$arcs[,7]]
+      temp2 <- temp[rem,]
+      
       temp <- temp[hull$arcs[,7],] %>% 
         mutate(area = sum(area)) %>% 
         mutate(id_cell = min(id_cell)) %>% 
@@ -468,14 +481,79 @@ create_anatomy <- function(path = NULL,  # PAth
         dplyr::mutate(atan = atan2(y-my, x - mx)) %>% 
         arrange(id_cell, atan) %>% 
         filter(!duplicated(atan))    
+      
+      
       groups <- rbind(groups, temp)
+      lost_points <- rbind(lost_points, temp2)
     }
   }
   rs1 <- rs1 %>% 
-    filter(id_group == 0)
-  rs1 <- rbind(rs1, groups)
-
+    filter(id_group == 0) 
+  rs1 <- rbind(rs1, groups)  
+  
+  
+  # Move the coordinates of the points to the edges of the xylem vessels
+  
+  # Get the points to move
+  rs1 <- rs1 %>% 
+    mutate(moved = ifelse(x %in% lost_points$x & y %in% lost_points$y, "yes", "no"))
+  id_to_move <- rs1$id_cell[rs1$moved == "yes"]
+  
+  # Get the xylem cells
+  xyls <- rs1 %>% 
+    filter(type == "xylem")
+  
+  for(i in id_to_move){
+    
+    temp <- rs1 %>% filter(id_cell == i & moved == "yes")
+    
+    for(j in c(1:nrow(temp))){
+      closests <- groups %>% 
+        mutate(dist = sqrt((temp$x[j] - x)^2 + (temp$y[j] - y)^2)) %>% 
+        arrange(dist) %>% 
+        filter(!duplicated(dist))  
+      
+      closests <- closests[c(1,2),]
+      
+      res <- line.line.intersection(c(closests$x[1], closests$y[1]), 
+                                    c(closests$x[2], closests$y[2]), 
+                                    c(closests$mx[1], closests$my[1]), 
+                                    c(temp$x[j], temp$y[j]))
+      
+      rs1$x[rs1$id_cell == i & 
+              rs1$moved == "yes" & 
+              rs1$x == temp$x[j] & 
+              rs1$y == temp$y[j]] <- res[1]
+      
+      rs1$y[rs1$id_cell == i & 
+              rs1$moved == "yes" & 
+              rs1$x == temp$x[j] & 
+              rs1$y == temp$y[j]] <- res[2]
+    }
+  }
+  
+  
+# rs1$id_temp <- c(1:nrow(rs1))
+# 
+#   
+# xyls <- rs1 %>% 
+#   filter(type == "xylem")
+# 
+# xyls <- xyls %>% 
+#   filter(id_cell == min(xyls$id_cell))
+#   
+# 
+#   
+#   rs1 <- rs1 %>% 
+#     filter(!id_temp %in% to_remove$id_temp)
+#   
+#   
+#   
+  
   t8 <- proc.time()
+  
+  
+
   
   
   # Reset the ids of the cells to be continuous
@@ -486,6 +564,8 @@ create_anatomy <- function(path = NULL,  # PAth
   
   all_cells <- merge(all_cells, ids, by="id_cell")
   all_cells$id_cell <- all_cells$new
+  
+
   
   
   tt <- proc.time()
@@ -545,15 +625,29 @@ create_anatomy <- function(path = NULL,  # PAth
     group_by(id_cell) %>% 
     dplyr::mutate(xx = c(x[-1],x[1])) %>% 
     dplyr::mutate(yy = c(y[-1],y[1]))
+  # 
+  nodes %>%
+    filter(type %in% c("stele", "xylem", "phloem")) %>%
+    ggplot(aes(x, y, col=type, group=id_cell)) +
+    geom_point() +
+    geom_line()+
+    coord_fixed()
   
   # plot(nodes2$xx, nodes$xx)
   
   nodes <- nodes %>% 
     ungroup() %>% 
+    mutate(vertical = ifelse(x == xx, "true", "false")) %>% 
+
     mutate(x1 = ifelse(x > xx, x, xx)) %>%
     mutate(x2 = ifelse(x > xx, xx, x)) %>%
     mutate(y1 = ifelse(x > xx, y, yy)) %>%
     mutate(y2 = ifelse(x > xx, yy, y)) %>%
+    # Bug fix when wall is perfectly vertical
+    mutate(y1 = ifelse(x == xx, 
+                       ifelse(y > yy, yy, y), y1)) %>%
+    mutate(y2 = ifelse(x == xx, 
+                       ifelse(y > yy, y, yy), y2)) %>%
     mutate(wall_length = sqrt((x2-x1)^2 + (y2-y1)^2)) %>%
     mutate(wall_length2 = sqrt((xx-x)^2 + (yy-y)^2))
 
