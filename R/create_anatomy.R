@@ -61,6 +61,8 @@ create_anatomy <- function(path = NULL,  # PAth
   
   t2 <- proc.time()
   
+  
+  #//////////////////////////////////////////////////////////////////////////////////////////////////
   # INITIALIZE LAYERS -----
   
   if(verbatim) message("Creating cell layers")
@@ -118,6 +120,9 @@ create_anatomy <- function(path = NULL,  # PAth
   
   t3 <- proc.time()
   
+  
+  
+  #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE CELLS ------
   
   if(verbatim) message("Creating cells")
@@ -165,6 +170,8 @@ create_anatomy <- function(path = NULL,  # PAth
   
   t4 <- proc.time()
   
+  
+  #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE XYLEM VESSELS -----
   # Create the xylem files
   # Get the extremes
@@ -352,7 +359,7 @@ create_anatomy <- function(path = NULL,  # PAth
   }
   
 
-  
+
   
   # 
   # all_cells$id_group <- 0
@@ -384,6 +391,8 @@ create_anatomy <- function(path = NULL,  # PAth
   t5 <- proc.time()
   
   
+  
+  #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE GEOMETRY ------
   if(verbatim) message("Creating the geometry")
   
@@ -420,6 +429,8 @@ create_anatomy <- function(path = NULL,  # PAth
   t6 <- proc.time()
   
   
+  
+  #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE AERENCHYMA -----
   if(verbatim) message("Killing cells to make aerenchyma")
   
@@ -440,8 +451,11 @@ create_anatomy <- function(path = NULL,  # PAth
   
   
 
+
   
-  # # TIDY DATA ------
+  
+  #//////////////////////////////////////////////////////////////////////////////////////////////////
+  ## TIDY DATA ------
   
   if(verbatim) message("Tidying data before export")
   
@@ -482,7 +496,6 @@ create_anatomy <- function(path = NULL,  # PAth
         arrange(id_cell, atan) %>% 
         filter(!duplicated(atan))    
       
-      
       groups <- rbind(groups, temp)
       lost_points <- rbind(lost_points, temp2)
     }
@@ -492,46 +505,141 @@ create_anatomy <- function(path = NULL,  # PAth
   rs1 <- rbind(rs1, groups)  
   
   
-  # Move the coordinates of the points to the edges of the xylem vessels
   
-  # Get the points to move
-  rs1 <- rs1 %>% 
-    mutate(moved = ifelse(x %in% lost_points$x & y %in% lost_points$y, "yes", "no"))
-  id_to_move <- rs1$id_cell[rs1$moved == "yes"]
-  
-  # Get the xylem cells
-  xyls <- rs1 %>% 
-    filter(type == "xylem")
-  
-  for(i in id_to_move){
-    
-    temp <- rs1 %>% filter(id_cell == i & moved == "yes")
-    
-    for(j in c(1:nrow(temp))){
-      closests <- groups %>% 
-        mutate(dist = sqrt((temp$x[j] - x)^2 + (temp$y[j] - y)^2)) %>% 
-        arrange(dist) %>% 
-        filter(!duplicated(dist))  
-      
-      closests <- closests[c(1,2),]
-      
-      res <- line.line.intersection(c(closests$x[1], closests$y[1]), 
-                                    c(closests$x[2], closests$y[2]), 
-                                    c(closests$mx[1], closests$my[1]), 
-                                    c(temp$x[j], temp$y[j]))
-      
-      rs1$x[rs1$id_cell == i & 
-              rs1$moved == "yes" & 
-              rs1$x == temp$x[j] & 
-              rs1$y == temp$y[j]] <- res[1]
-      
-      rs1$y[rs1$id_cell == i & 
-              rs1$moved == "yes" & 
-              rs1$x == temp$x[j] & 
-              rs1$y == temp$y[j]] <- res[2]
+
+  # REMOVE THE WRONG XYLEM POINTS IN THE SURROIUNDING CELLS
+  bad_points <- NULL # > TO MOVE
+  not_so_bad_points <- NULL # > TO REMOVE
+  for(i in c(1:nrow(lost_points))){
+    if(nrow(rs1[rs1$x == lost_points$x[i],]) > 1){
+      bad_points <- rbind(bad_points, (rs1[rs1$x == lost_points$x[i],])) # Get the points that need to be moved
+    }
+    if(nrow(rs1[rs1$x == lost_points$x[i],]) == 1){
+      not_so_bad_points <- rbind(not_so_bad_points, (rs1[rs1$x == lost_points$x[i],])) # Get the points that need to be removed
     }
   }
   
+  # Remove the bad points
+  rs1 <- rs1 %>% 
+    mutate(remove = ifelse(x %in% not_so_bad_points$x & y %in% not_so_bad_points$y, "yes", "no")) %>% 
+    filter(remove == "no")
+
+  
+  all_xyl <- rs1 %>% filter(type == "xylem")
+  
+  for(i in c(1:nrow(bad_points))){
+    print(i)
+    # Find the closest xylem coordinate
+    
+    xyl <- rs1 %>% 
+      filter(x == bad_points$x[i] & y == bad_points$y[i])
+    if(nrow(xyl) > 1){
+      xyl2 <- rs1 %>% 
+        filter(id_cell %in% xyl$id_cell)  %>% 
+        filter(x %in% all_xyl$x & y %in% all_xyl$y)
+  
+      new_xyl <- all_xyl[all_xyl$x == xyl2$x[1],]
+      
+      out_cells <- rs1 %>% 
+        filter(id_cell %in% xyl$id_cell) 
+      
+      out_cells <- out_cells[duplicated(out_cells$x), ]
+      res <- line.line.intersection(c(out_cells$x[1], out_cells$y[1]), 
+                                    c(out_cells$x[2], out_cells$y[2]), 
+                                    c(xyl2$x[1], xyl2$y[1]), 
+                                    c(xyl2$x[2], xyl2$y[2]))
+      res <- data.frame(x=res[1], y=res[2])
+      
+      # Move the points in the stele cells
+      rs1$x[rs1$x == bad_points$x[i] & rs1$y == bad_points$y[i]] <- res$x
+      rs1$y[rs1$x == res$x & rs1$y == bad_points$y[i]] <- res$y
+      
+      ## Add a point into the xylem vessel
+      new_xyl$x <- res$x
+      new_xyl$y <- res$y
+      rs1 <- rbind(rs1, new_xyl)
+    }else if(nrow(xyl) == 1){
+      
+      rs1 <- rs1 %>% 
+        mutate(remove = ifelse(x %in% xyl$x & y %in% xyl$y, "yes", "no")) %>% 
+        filter(remove == "no")
+      
+    }
+    
+    
+  }
+  
+  rs1 <- rs1 %>% 
+    dplyr::group_by(id_cell) %>% 
+    dplyr::mutate(my = mean(y)) %>% 
+    dplyr::mutate(mx = mean(x)) %>% 
+    dplyr::mutate(atan = atan2(y-my, x - mx)) %>% 
+    dplyr::arrange(id_cell, atan) %>% 
+    filter(!duplicated(atan))
+  
+  bad_points[bad_points$x == out_cells$x[1],]
+  
+  # 
+  # ggplot(rs1) + 
+  #    #geom_polygon(aes_string("x", "y", group="id_cell", fill="type"), colour="white") +
+  #   geom_polygon(data = rs1[rs1$type %in% c("stele", "phloem", "companion_cell", "pericycle"),], aes_string("x", "y", group="id_cell", fill="type"), colour="white",alpha=0.5) + 
+  #   geom_polygon(data = rs1[rs1$type == "xylem",], aes_string("x", "y", group="id_cell", fill="type"), colour="white",alpha=0.5) + 
+  #   geom_point(data=xyl, aes(x, y), size=2, colour="red") + 
+  #   geom_point(data=bad_points, aes(x, y), size=2, colour="red") + 
+  #   geom_point(data=xyl2, aes(x, y), size=2, colour="green") +
+  #   geom_point(data=res, aes(x, y), size=2, colour="blue") +
+  #   geom_point(data=out_cells, aes(x, y), size=2, colour="black") +
+  #   geom_point(data = rs1[rs1$type == "stele",], aes_string("x", "y"), colour="pink") + 
+  #   # geom_point(data=rs1[rs1$remove == "yes",], aes(x, y), size=2, colour="blue") + 
+  #   theme_classic() + 
+  #   # xlim(c(3, 5)) + 
+  #   # ylim(c(2,4)) + 
+  #   coord_fixed()
+  # 
+  
+
+  
+  
+  
+  # # Move the coordinates of the points to the edges of the xylem vessels
+  # # Get the points to move
+  # rs1 <- rs1 %>% 
+  #   mutate(moved = ifelse(x %in% lost_points$x & y %in% lost_points$y, "yes", "no"))
+  # id_to_move <- rs1$id_cell[rs1$moved == "yes"]
+  # 
+  # # Get the xylem cells
+  # xyls <- rs1 %>% 
+  #   filter(type == "xylem")
+  # 
+  # for(i in id_to_move){
+  #   
+  #   temp <- rs1 %>% filter(id_cell == i & moved == "yes")
+  #   
+  #   for(j in c(1:nrow(temp))){
+  #     closests <- groups %>% 
+  #       mutate(dist = sqrt((temp$x[j] - x)^2 + (temp$y[j] - y)^2)) %>% 
+  #       arrange(dist) %>% 
+  #       filter(!duplicated(dist))  
+  #     
+  #     closests <- closests[c(1,2),]
+  #     
+  #     res <- line.line.intersection(c(closests$x[1], closests$y[1]), 
+  #                                   c(closests$x[2], closests$y[2]), 
+  #                                   c(closests$mx[1], closests$my[1]), 
+  #                                   c(temp$x[j], temp$y[j]))
+  #     
+  #     rs1$x[rs1$id_cell == i & 
+  #             rs1$moved == "yes" & 
+  #             rs1$x == temp$x[j] & 
+  #             rs1$y == temp$y[j]] <- res[1]
+  #     
+  #     rs1$y[rs1$id_cell == i & 
+  #             rs1$moved == "yes" & 
+  #             rs1$x == temp$x[j] & 
+  #             rs1$y == temp$y[j]] <- res[2]
+  #   }
+  # }
+  # 
   
 # rs1$id_temp <- c(1:nrow(rs1))
 # 
