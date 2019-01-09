@@ -1,43 +1,46 @@
 
 #' Create root anatomy
 #'
-#' This function creates a 2D root cross section anatomy based on global parameters
+#' This function creates a 2D root cross section anatomy based on global parameters. It is the core of GRANAR.
 #' @param path Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.
 #' @param parameters Table with the different parameters. Not needed if 'path' is set.  Default = NULL.
 #' @param verbatim Display textual information aboutt he simulation. Default = NULL.
-#' @keywords root
+#' @keywords root anatomy
 #' @export
 #' @examples
 #' create_anatomy("PATH_TO_XLM_FILE")
-#' 
+#'
 
 
 create_anatomy <- function(path = NULL,  # PAth
                            parameters = NULL,
                            verbatim = F){
-  
+
   # Return NULL is no parameters are specified
   if( is.null(path) & is.null(parameters)){
     warning("Please specify a parameter set for the simulation")
     return(NULL)
   }
-  
+
   if(verbatim) message("Loading parameters")
-  
+
   if(!is.null(path)){
     params <- read_param_xml(path)
   }
   if(!(is.null(parameters))){
     params <- parameters
-    
-    # Quality control
-    to_find <- c("planttype", "randomness", "xylem", "phloem", "stele", "endodermis", "exodermis", "epidermis", "aerenchyma", "pericycle", "cortex")
-    for(tf in to_find){
-      if (nrow(params[params$name == tf,]) == 0){
-        warning(paste0("Could not find the '",tf,"' information in the parameter input"))
-        return(NULL)
-      }
+    if(nrow(params[params$name == "planttype",]) == 0){
+      warning(paste0("Could not find the 'planttype' information in the parameter input"))
+      return(NULL)
     }
+    # Quality control
+      to_find <- c("planttype", "randomness", "xylem", "phloem", "stele", "endodermis", "exodermis", "epidermis", "aerenchyma", "pericycle", "cortex")
+      for(tf in to_find){
+        if (nrow(params[params$name == tf,]) == 0){
+          warning(paste0("Could not find the '",tf,"' information in the parameter input"))
+          return(NULL)
+        }
+      }
     cols_to_find <- c("name", "type", "value")
     for(ctf in cols_to_find){
       if (is.null(params[[ctf]])){
@@ -45,11 +48,11 @@ create_anatomy <- function(path = NULL,  # PAth
         return(NULL)
       }
     }
-      
+
   }
-  
+
   t1 <- proc.time()
-  
+
   # PARAMETERS -----
   plant_type <- params$value[params$name == "planttype"]
   random_fact <- params$value[params$name == "randomness"] / 100
@@ -57,33 +60,34 @@ create_anatomy <- function(path = NULL,  # PAth
   n_aerenchyma_files <- params$value[params$name == "aerenchyma" & params$type == "n_files"]
   proportion_aerenchyma <- params$value[params$name == "aerenchyma" & params$type == "proportion"]
   n_xylem_files <- params$value[params$name == "xylem" & params$type == "n_files"]
-  
-  
+  proto_meta_ratio <- params$value[params$name == "xylem" & params$type == "ratio"]
+  n_proto_xylem <- round(n_xylem_files*proto_meta_ratio)
+
   t2 <- proc.time()
-  
-  
+
+
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # INITIALIZE LAYERS -----
-  
+
   if(verbatim) message("Creating cell layers")
-  
-  layers <- params %>% 
-    filter(type %in% c("cell_diameter","n_layers","order")) %>% 
-    spread(type, value) %>% 
-    filter(!is.na(n_layers)) %>% 
+
+  layers <- params %>%
+    filter(type %in% c("cell_diameter","n_layers","order")) %>%
+    spread(type, value) %>%
+    filter(!is.na(n_layers)) %>%
     arrange(order)
-  
+
   # Create and "outside" layer to serve as boundary for the voronoi algorithm.
-  layers <- rbind(layers, data.frame(name="outside", 
-                                     n_layers=1, 
+  layers <- rbind(layers, data.frame(name="outside",
+                                     n_layers=1,
                                      cell_diameter=layers$cell_diameter[layers$name == "epidermis"]* 1,
                                      order = max(layers$order)+1))
-  
+
   # Get the number of cell layers for the stele
   layers$n_layers[layers$name == "stele"] <- round((stele_diameter/2) / layers$cell_diameter[layers$name == "stele"])
   #layers$size[layers$name == "stele"] <- diam_stele
 
-  
+
   # Get one row per actual cell layer
   all_layers <- NULL
   for(i in c(1:nrow(layers))){
@@ -91,42 +95,42 @@ create_anatomy <- function(path = NULL,  # PAth
       all_layers <- rbind(all_layers, layers[i,])
     }
   }
-  
-  all_layers$radius <- all_layers$cell_diameter / 2 
+
+  all_layers$radius <- all_layers$cell_diameter / 2
   all_layers$perim <- all_layers$radius * 2 * pi
   all_layers$n_cell <- 1
   all_layers$angle_inc <- 0
   for(i in c(2:nrow(all_layers))){
     # Update radius
-    all_layers$radius[i] <- all_layers$radius[i-1] +  
-      all_layers$cell_diameter[i-1] / 2 + 
+    all_layers$radius[i] <- all_layers$radius[i-1] +
+      all_layers$cell_diameter[i-1] / 2 +
       all_layers$cell_diameter[i] / 2
     if(all_layers$name[i] == "outside"){
-      all_layers$radius[i] <- all_layers$radius[i-1] +  
-        all_layers$cell_diameter[i-1] / 2 + 
+      all_layers$radius[i] <- all_layers$radius[i-1] +
+        all_layers$cell_diameter[i-1] / 2 +
         all_layers$cell_diameter[i] / 2
     }
-    
+
     # Update perimeter
     all_layers$perim[i] <- all_layers$radius[i] * 2 * pi
-    
+
     # Update number of cells in the layers
     all_layers$n_cell[i] <- round(all_layers$perim[i] / all_layers$cell_diameter[i])
-    
+
     # Update the mean angle between cells
     all_layers$angle_inc[i] <- 2 * pi / all_layers$n_cell[i]
   }
-  
-  
+
+
   t3 <- proc.time()
-  
-  
-  
+
+
+
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE CELLS ------
-  
+
   if(verbatim) message("Creating cells")
-  
+
   center <- max(all_layers$radius)
   all_cells <- NULL
   k <- 1
@@ -140,7 +144,7 @@ create_anatomy <- function(path = NULL,  # PAth
     k1 <- k+all_layers$n_cell[i]-1
     ks <- c(k:k1)
     k <- k1+1
-    
+
     if(all_layers$name[i] == "outside"){
       x <- center + (radius * cos(angles))
       y <- center + (radius * sin(angles))
@@ -151,7 +155,7 @@ create_anatomy <- function(path = NULL,  # PAth
       x <- center + (radius * cos(angles)) * runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
       y <- center + (radius * sin(angles)) * runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
     }
-    
+
     all_cells <- rbind(all_cells, data.frame(
       angle = angles,
       radius = radius,
@@ -164,27 +168,27 @@ create_anatomy <- function(path = NULL,  # PAth
     )
     )
   }
-  
+
   # all_cells <- all_cells_bis
   summary_cells <- ddply(all_cells, .(type), summarise, n_cells = length(angle))
-  
+
   t4 <- proc.time()
-  
-  
+
+
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE XYLEM VESSELS -----
   # Create the xylem files
   # Get the extremes
-  
+
   if(verbatim) message("Creating xylem and phloem vessels")
-  
+
   all_cells$id_group <- 0
-  
+
   if(plant_type == 2){ # DICOT
     xyl <- data.frame(r=numeric(2), d=numeric(2))
     xyl$r <- c(0, max(all_cells$radius[all_cells$type == "stele"]))
     xyl$d <- c(params$value[params$type == "max_size" & params$name == "xylem"], layers$cell_diameter[layers$name == "stele"])
-    
+
     # Get the cells in between
     fit <- lm(d ~ r, data=xyl)$coefficients
     rnew <- xyl$r[1]
@@ -194,7 +198,7 @@ create_anatomy <- function(path = NULL,  # PAth
     keep_going <- T
     while(keep_going){
       xyl <- xyl %>% arrange(r)
-      
+
       rnew <- xyl$r[i] + xyl$d[i] #+ (xyl$r[2]/10)
       dnew <- fit[1] + rnew*fit[2]
       while(rnew+(dnew/2) > rmax-(dmin/2)){
@@ -204,9 +208,9 @@ create_anatomy <- function(path = NULL,  # PAth
       }
       xyl <- rbind(xyl, data.frame(r = rnew,d = dnew))
       i <- i+1
-      
+
     }
-    xyl <- xyl %>% arrange(r)  
+    xyl <- xyl %>% arrange(r)
     while(xyl$d[nrow(xyl)] >= xyl$d[nrow(xyl)-1]){
       xyl$d[nrow(xyl)] <- xyl$d[nrow(xyl)] - 0.04
       xyl$r[nrow(xyl)] <- xyl$r[nrow(xyl)] - 0.02
@@ -232,7 +236,7 @@ create_anatomy <- function(path = NULL,  # PAth
       order = 1.5,
       id_group = i
     ))
-    
+
     i <- i+1
     for(angle in angle_seq){
       x <- center + (xyl$r[-1] * cos(angle))
@@ -255,11 +259,17 @@ create_anatomy <- function(path = NULL,  # PAth
       )
       )
       i <- i+1
-    }    
-    
+    }
+
   }else if(plant_type == 1){ # MONOCOT
-      xyl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "max_size" & params$name == "xylem"])/2, 
-                        d = params$value[params$type == "max_size" & params$name == "xylem"])
+
+    #modification 05/01
+    r= max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "cell_diameter" & params$name == "stele"])*1.5 -
+      (params$value[params$type == "max_size" & params$name == "xylem"])/2
+    xyl <- data.frame(r = r,
+                      d = params$value[params$type == "max_size" & params$name == "xylem"])
+    #  xyl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "max_size" & params$name == "xylem"])/2,
+     #                  d = params$value[params$type == "max_size" & params$name == "xylem"])
       all_xylem <- NULL
       angle_seq <- seq(from = 0, to = (2*pi), by = (2 * pi) / n_xylem_files)
       i <- 1
@@ -284,67 +294,52 @@ create_anatomy <- function(path = NULL,  # PAth
           )
         )
         i <-i+1
-      }  
-      
-      # Phloem vessels are built between xylem ones
-      phl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "max_size" & params$name == "xylem"])/2, 
+      }
+
+      # protoxylem vessels are built on the outer stele rim
+      protoxyl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "cell_diameter" & params$name == "stele"])/2,
                         d = params$value[params$type == "cell_diameter" & params$name == "stele"])
-      all_phloem <- NULL
+      angle_seq_proto <- seq(from = 0, to = (2*pi), by = (2 * pi) / n_proto_xylem)
+      for(angle in angle_seq_proto){
+        x1 <- center + (protoxyl$r[1] * cos(angle))
+        y1 <- center + (protoxyl$r[1] * sin(angle))
+        #Find the closest stele cell and assign it as a protoxylem vessel
+        all_cells <- all_cells %>%
+          mutate(type = as.character(type)) %>%
+          mutate(dist_protoxyl = sqrt((x-x1)^2 + (y-y1)^2)) %>%
+          mutate(dist_protoxyl = ifelse(type == "stele", dist_protoxyl, 100)) %>%
+          mutate(type = ifelse(dist_protoxyl == min(dist_protoxyl), "xylem", type))
+      }
+
+      # Phloem vessels are built between xylem ones
+      phl <- data.frame(r = r,
+                        d = params$value[params$type == "cell_diameter" & params$name == "stele"])
       angle_seq_ph <- seq(from = ((2 * pi) / n_xylem_files ) /2, to = (2*pi), by = (2 * pi) / n_xylem_files)
       for(angle in angle_seq_ph){
           x1 <- center + (phl$r[1] * cos(angle))
           y1 <- center + (phl$r[1] * sin(angle))
           #Find the closest stele cell and assign it as a phloem vessel
-          all_cells <- all_cells %>% 
+          all_cells <- all_cells %>%
             mutate(type = as.character(type)) %>%
-            mutate(dist_phl = sqrt((x-x1)^2 + (y-y1)^2)) %>% 
-            mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>% 
+            mutate(dist_phl = sqrt((x-x1)^2 + (y-y1)^2)) %>%
+            mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>%
             mutate(type = ifelse(dist_phl == min(dist_phl), "phloem", type))
-            
+
           # Get the compânion cells
-          all_cells <- all_cells %>% 
+          all_cells <- all_cells %>%
             mutate(type = as.character(type)) %>%
-            mutate(dist_phl = sqrt((x-x1)^2 + (y-y1)^2)) %>% 
-            mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>% 
+            mutate(dist_phl = sqrt((x-x1)^2 + (y-y1)^2)) %>%
+            mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>%
             mutate(type = ifelse(dist_phl == min(dist_phl), "companion_cell", type))
-                   
-         all_cells <- all_cells %>% 
+
+         all_cells <- all_cells %>%
            mutate(type = as.character(type)) %>%
-           mutate(dist_phl = sqrt((x-x1)^2 + (y-y1)^2)) %>% 
-           mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>% 
-           mutate(type = ifelse(dist_phl == min(dist_phl), "companion_cell", type))                   
-          # all_phloem <- rbind(all_phloem, data.frame(x = x,
-          #                                          y = y,
-          #                                          d = phl$d[1],
-          #                                          angle = angle,
-          #                                          id_group = i))
-          # all_cells <- rbind(all_cells, data.frame(
-          #   angle = angle,
-          #   radius = phl$r[1],
-          #   x = x,
-          #   y = y,
-          #   id_layer = 22,
-          #   id_cell = 1,
-          #   order = 1.5,
-          #   type = "xylem",
-          #   id_group = 0
-          # )
-        # )
-      }       
+           mutate(dist_phl = sqrt((x-x1)^2 + (y-y1)^2)) %>%
+           mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>%
+           mutate(type = ifelse(dist_phl == min(dist_phl), "companion_cell", type))
+      }
   }
 
-  # # Change the identity of stele cells to be replaced by xylem cells
-  # for(i in c(1:nrow(all_phloem))){
-  #   # print(i)
-  #   all_cells <- all_cells %>%
-  #     mutate(type = as.character(type)) %>%
-  #     mutate(type = ifelse(((x-all_phloem$x[i])^2 + (y - all_phloem$y[i])^2 < (all_phloem$d[i]/2)^2 & type == "stele"),
-  #                          "phloem", type))
-  #   
-  #   # all_cells <- all_cells %>%
-  #   # filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
-  # }
-  
   # Change the identity of stele cells to be replaced by xylem cells
   for(i in c(1:nrow(all_xylem))){
     # print(i)
@@ -357,52 +352,26 @@ create_anatomy <- function(path = NULL,  # PAth
     # all_cells <- all_cells %>%
     # filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
   }
-  
 
 
-  
-  # 
-  # all_cells$id_group <- 0
-  # angle_seq <- seq(from = 0, to = (2*pi), by = (2 * pi) / 5)
-  # for(i in c(1:nrow(all_xylem))){
-  #   for(angle in angle_seq){
-  #     x <- all_xylem$x[i] + (all_xylem$d[i]* 0.3 * cos(angle))
-  #     y <- all_xylem$y[i] + (all_xylem$d[i]* 0.3 * sin(angle))
-  # 
-  #     all_cells <- rbind(all_cells, data.frame(
-  #       angle = angle,
-  #       radius = sqrt((x-center)^2 + (y-center)^2),
-  #       x = x,
-  #       y = y,
-  #       id_layer = 20,
-  #       id_cell = 1,
-  #       type = "xylem",
-  #       order = 1.5,
-  #       id_group = all_xylem$id_group[i]
-  #       )
-  #     )
-  #   }
-  # }
-  
-  
   # reset the cell ids
   all_cells$id_cell <- c(1:nrow(all_cells))
-  
+
   t5 <- proc.time()
-  
-  
-  
+
+
+
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE GEOMETRY ------
   if(verbatim) message("Creating the geometry")
-  
+
   # Get the voronio data
   vtess <- deldir(all_cells$x, all_cells$y)
-  
+
   # Remove the ouside cells, to get the voronoi data straight
   all_cells <- all_cells  %>%
     filter(type != "outside")
-  
+
   # Get the size of the cells
   cell_size <- vtess$summary
   ids <- all_cells$id_cell
@@ -411,12 +380,12 @@ create_anatomy <- function(path = NULL,  # PAth
   all_cells$area <- all_cells$dir.area
   all_cells$dist <- sqrt((all_cells$x - center)^2 + (all_cells$y - center)^2 )
 
-    
+
   ids <- all_cells$id_cell
-  
-  rs <- vtess$dirsgs[vtess$dirsgs$ind1 %in% ids | 
+
+  rs <- vtess$dirsgs[vtess$dirsgs$ind1 %in% ids |
                        vtess$dirsgs$ind2 %in% ids,]
-  
+
   # Get the cooridnates for every nodes in the voronoi
   rs <- rs %>% arrange(ind1)
   rs2 <- data.frame(x = rs$x1, y=rs$y1, id_cell = rs$ind1)
@@ -427,85 +396,85 @@ create_anatomy <- function(path = NULL,  # PAth
   rs2 <- merge(rs2, all_cells[,c("id_cell", "type", "area", "dist", "angle", "radius", "id_layer", "id_group")], by="id_cell")
 
   t6 <- proc.time()
-  
-  
-  
+
+
+
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE AERENCHYMA -----
   if(verbatim) message("Killing cells to make aerenchyma")
-  
+
   angle_inc <- (2 * pi) / n_aerenchyma_files
   angle_range_inc <- (2 * pi * proportion_aerenchyma / 2) / n_aerenchyma_files
   safe_cortex_layer <- min(rs2$id_layer[rs2$type == "cortex"])
-  
+
   rs2$type <- as.character(rs2$type)
   angle <- runif(1, 0.8, 1) * pi/n_aerenchyma_files
   for(j in c(1:n_aerenchyma_files)){
     angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
-    rs2 <- rs2 %>% 
+    rs2 <- rs2 %>%
       filter(!(id_layer != safe_cortex_layer & type == "cortex" & angle > angle_range[1] & angle < angle_range[2]))
     angle <- angle + angle_inc
   }
-  
+
   t7 <- proc.time()
-  
-  
 
 
-  
-  
+
+
+
+
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   ## TIDY DATA ------
-  
+
   if(verbatim) message("Tidying data before export")
-  
-  rs1 <- rs2 %>% 
-    dplyr::group_by(id_cell) %>% 
-    dplyr::mutate(my = mean(y)) %>% 
-    dplyr::mutate(mx = mean(x)) %>% 
-    dplyr::mutate(atan = atan2(y-my, x - mx)) %>% 
-    dplyr::arrange(id_cell, atan) %>% 
+
+  rs1 <- rs2 %>%
+    dplyr::group_by(id_cell) %>%
+    dplyr::mutate(my = mean(y)) %>%
+    dplyr::mutate(mx = mean(x)) %>%
+    dplyr::mutate(atan = atan2(y-my, x - mx)) %>%
+    dplyr::arrange(id_cell, atan) %>%
     filter(!duplicated(atan))
-  
+
 
   # Merge the adgecent xylem cells
   if(verbatim) message("Merging xylem vessels")
   groups <- NULL
   lost_points <- NULL
   for(i in c(1:max(rs1$id_group))){
-    temp <- rs1 %>% 
-      filter(id_group == i) %>% 
-      group_by(x,y) %>% 
+    temp <- rs1 %>%
+      filter(id_group == i) %>%
+      group_by(x,y) %>%
       filter(row_number() == 1)
-    
+
     if(nrow(temp) > 2){
       hull <- with(temp, ahull(x, y, alpha=1)) # Create a convex hull aroud the exiting xylem cells TODO
-      
+
       # Get the points that were removed with the convexhull. This will be used to track them later and moved them to the edge
       rem <- c(1:nrow(temp))
       rem <- rem[! rem %in% hull$arcs[,7]]
       temp2 <- temp[rem,]
-      
-      temp <- temp[hull$arcs[,7],] %>% 
-        mutate(area = sum(area)) %>% 
-        mutate(id_cell = min(id_cell)) %>% 
-        dplyr::group_by(id_cell) %>% 
-        dplyr::mutate(my = mean(y)) %>% 
-        dplyr::mutate(mx = mean(x)) %>% 
-        dplyr::mutate(atan = atan2(y-my, x - mx)) %>% 
-        arrange(id_cell, atan) %>% 
-        filter(!duplicated(atan))    
-      
+
+      temp <- temp[hull$arcs[,7],] %>%
+        mutate(area = sum(area)) %>%
+        mutate(id_cell = min(id_cell)) %>%
+        dplyr::group_by(id_cell) %>%
+        dplyr::mutate(my = mean(y)) %>%
+        dplyr::mutate(mx = mean(x)) %>%
+        dplyr::mutate(atan = atan2(y-my, x - mx)) %>%
+        arrange(id_cell, atan) %>%
+        filter(!duplicated(atan))
+
       groups <- rbind(groups, temp)
       lost_points <- rbind(lost_points, temp2)
     }
   }
-  rs1 <- rs1 %>% 
-    filter(id_group == 0) 
-  rs1 <- rbind(rs1, groups)  
-  
-  
-  
+  rs1 <- rs1 %>%
+    filter(id_group == 0)
+  rs1 <- rbind(rs1, groups)
+
+
+
 
   # REMOVE THE WRONG XYLEM POINTS IN THE SURROIUNDING CELLS
   bad_points <- NULL # > TO MOVE
@@ -518,258 +487,150 @@ create_anatomy <- function(path = NULL,  # PAth
       not_so_bad_points <- rbind(not_so_bad_points, (rs1[rs1$x == lost_points$x[i],])) # Get the points that need to be removed
     }
   }
-  
+
   # Remove the bad points
-  rs1 <- rs1 %>% 
-    mutate(remove = ifelse(x %in% not_so_bad_points$x & y %in% not_so_bad_points$y, "yes", "no")) %>% 
+  rs1 <- rs1 %>%
+    mutate(remove = ifelse(x %in% not_so_bad_points$x & y %in% not_so_bad_points$y, "yes", "no")) %>%
     filter(remove == "no")
 
-  
+
   all_xyl <- rs1 %>% filter(type == "xylem")
-  
+
   for(i in c(1:nrow(bad_points))){
     print(i)
     # Find the closest xylem coordinate
-    
-    xyl <- rs1 %>% 
+
+    xyl <- rs1 %>%
       filter(x == bad_points$x[i] & y == bad_points$y[i])
     if(nrow(xyl) > 1){
-      xyl2 <- rs1 %>% 
-        filter(id_cell %in% xyl$id_cell)  %>% 
+      xyl2 <- rs1 %>%
+        filter(id_cell %in% xyl$id_cell)  %>%
         filter(x %in% all_xyl$x & y %in% all_xyl$y)
-  
+
       new_xyl <- all_xyl[all_xyl$x == xyl2$x[1],]
-      
-      out_cells <- rs1 %>% 
-        filter(id_cell %in% xyl$id_cell) 
-      
+
+      out_cells <- rs1 %>%
+        filter(id_cell %in% xyl$id_cell)
+
       out_cells <- out_cells[duplicated(out_cells$x), ]
-      res <- line.line.intersection(c(out_cells$x[1], out_cells$y[1]), 
-                                    c(out_cells$x[2], out_cells$y[2]), 
-                                    c(xyl2$x[1], xyl2$y[1]), 
+      res <- line.line.intersection(c(out_cells$x[1], out_cells$y[1]),
+                                    c(out_cells$x[2], out_cells$y[2]),
+                                    c(xyl2$x[1], xyl2$y[1]),
                                     c(xyl2$x[2], xyl2$y[2]))
       res <- data.frame(x=res[1], y=res[2])
-      
+
       # Move the points in the stele cells
       rs1$x[rs1$x == bad_points$x[i] & rs1$y == bad_points$y[i]] <- res$x
       rs1$y[rs1$x == res$x & rs1$y == bad_points$y[i]] <- res$y
-      
+
       ## Add a point into the xylem vessel
       new_xyl$x <- res$x
       new_xyl$y <- res$y
       rs1 <- rbind(rs1, new_xyl)
     }else if(nrow(xyl) == 1){
-      
-      rs1 <- rs1 %>% 
-        mutate(remove = ifelse(x %in% xyl$x & y %in% xyl$y, "yes", "no")) %>% 
+
+      rs1 <- rs1 %>%
+        mutate(remove = ifelse(x %in% xyl$x & y %in% xyl$y, "yes", "no")) %>%
         filter(remove == "no")
-      
+
     }
-    
-    
+
+
   }
-  
-  rs1 <- rs1 %>% 
-    dplyr::group_by(id_cell) %>% 
-    dplyr::mutate(my = mean(y)) %>% 
-    dplyr::mutate(mx = mean(x)) %>% 
-    dplyr::mutate(atan = atan2(y-my, x - mx)) %>% 
-    dplyr::arrange(id_cell, atan) %>% 
+
+  rs1 <- rs1 %>%
+    dplyr::group_by(id_cell) %>%
+    dplyr::mutate(my = mean(y)) %>%
+    dplyr::mutate(mx = mean(x)) %>%
+    dplyr::mutate(atan = atan2(y-my, x - mx)) %>%
+    dplyr::arrange(id_cell, atan) %>%
     filter(!duplicated(atan))
-  
+
   bad_points[bad_points$x == out_cells$x[1],]
-  
-  # 
-  # ggplot(rs1) + 
-  #    #geom_polygon(aes_string("x", "y", group="id_cell", fill="type"), colour="white") +
-  #   geom_polygon(data = rs1[rs1$type %in% c("stele", "phloem", "companion_cell", "pericycle"),], aes_string("x", "y", group="id_cell", fill="type"), colour="white",alpha=0.5) + 
-  #   geom_polygon(data = rs1[rs1$type == "xylem",], aes_string("x", "y", group="id_cell", fill="type"), colour="white",alpha=0.5) + 
-  #   geom_point(data=xyl, aes(x, y), size=2, colour="red") + 
-  #   geom_point(data=bad_points, aes(x, y), size=2, colour="red") + 
-  #   geom_point(data=xyl2, aes(x, y), size=2, colour="green") +
-  #   geom_point(data=res, aes(x, y), size=2, colour="blue") +
-  #   geom_point(data=out_cells, aes(x, y), size=2, colour="black") +
-  #   geom_point(data = rs1[rs1$type == "stele",], aes_string("x", "y"), colour="pink") + 
-  #   # geom_point(data=rs1[rs1$remove == "yes",], aes(x, y), size=2, colour="blue") + 
-  #   theme_classic() + 
-  #   # xlim(c(3, 5)) + 
-  #   # ylim(c(2,4)) + 
-  #   coord_fixed()
-  # 
-  
 
-  
-  
-  
-  # # Move the coordinates of the points to the edges of the xylem vessels
-  # # Get the points to move
-  # rs1 <- rs1 %>% 
-  #   mutate(moved = ifelse(x %in% lost_points$x & y %in% lost_points$y, "yes", "no"))
-  # id_to_move <- rs1$id_cell[rs1$moved == "yes"]
-  # 
-  # # Get the xylem cells
-  # xyls <- rs1 %>% 
-  #   filter(type == "xylem")
-  # 
-  # for(i in id_to_move){
-  #   
-  #   temp <- rs1 %>% filter(id_cell == i & moved == "yes")
-  #   
-  #   for(j in c(1:nrow(temp))){
-  #     closests <- groups %>% 
-  #       mutate(dist = sqrt((temp$x[j] - x)^2 + (temp$y[j] - y)^2)) %>% 
-  #       arrange(dist) %>% 
-  #       filter(!duplicated(dist))  
-  #     
-  #     closests <- closests[c(1,2),]
-  #     
-  #     res <- line.line.intersection(c(closests$x[1], closests$y[1]), 
-  #                                   c(closests$x[2], closests$y[2]), 
-  #                                   c(closests$mx[1], closests$my[1]), 
-  #                                   c(temp$x[j], temp$y[j]))
-  #     
-  #     rs1$x[rs1$id_cell == i & 
-  #             rs1$moved == "yes" & 
-  #             rs1$x == temp$x[j] & 
-  #             rs1$y == temp$y[j]] <- res[1]
-  #     
-  #     rs1$y[rs1$id_cell == i & 
-  #             rs1$moved == "yes" & 
-  #             rs1$x == temp$x[j] & 
-  #             rs1$y == temp$y[j]] <- res[2]
-  #   }
-  # }
-  # 
-  
-# rs1$id_temp <- c(1:nrow(rs1))
-# 
-#   
-# xyls <- rs1 %>% 
-#   filter(type == "xylem")
-# 
-# xyls <- xyls %>% 
-#   filter(id_cell == min(xyls$id_cell))
-#   
-# 
-#   
-#   rs1 <- rs1 %>% 
-#     filter(!id_temp %in% to_remove$id_temp)
-#   
-#   
-#   
-  
   t8 <- proc.time()
-  
-  
 
-  
-  
+
+
+
+
   # Reset the ids of the cells to be continuous
   ids <- data.frame(id_cell = unique(rs1$id_cell))
   ids$new <- c(1:nrow(ids))
   rs1 <- merge(rs1, ids, by="id_cell")
   rs1$id_cell <- rs1$new
-  
+
   all_cells <- merge(all_cells, ids, by="id_cell")
   all_cells$id_cell <- all_cells$new
-  
 
-  
-  
+
+
+
   tt <- proc.time()
   # outputing the inputs
   output <- data.frame(io = "input", name = params$name, type = params$type, value = params$value)
-  
-  
+
+
   # adding the outputs by cell layers
   out <- ddply(all_cells, .(type), summarise, n_cells=length(type),
                                                 layer_area = sum(area),
-                                                cell_area = mean(area)) %>% 
-    mutate(name = type) %>% 
-    dplyr::select(-type) %>% 
-    gather(key = "type", value = "value", n_cells, layer_area, cell_area) %>% 
+                                                cell_area = mean(area)) %>%
+    mutate(name = type) %>%
+    dplyr::select(-type) %>%
+    gather(key = "type", value = "value", n_cells, layer_area, cell_area) %>%
     mutate(io = "output")%>%
     dplyr::select(io, everything())
   output <- rbind(output, out)
-  
+
   # finaly we add the outputs for the whole section
   output <-rbind(output, data.frame(io="output", name="all", type="n_cells", value = nrow(all_cells)))
   output <-rbind(output, data.frame(io="output", name="all", type="layer_area", value = sum(all_cells$area)))
-  
+
   print(proc.time() - tt)
-  
-  # section <- data.frame(n_cells = nrow(all_cells),
-  #                       n_xylem = nrow(all_cells[all_cells$type == "xylem",]),
-  #                       n_phloem = nrow(all_cells[all_cells$type == "phloem",]),
-  #                       n_epidermis = nrow(all_cells[all_cells$type == "epidermis",]),
-  #                       n_endodermis = nrow(all_cells[all_cells$type == "endodermis",]),
-  #                       n_exodermis = nrow(all_cells[all_cells$type == "exodermis",]),
-  #                       n_pericycle = nrow(all_cells[all_cells$type == "pericycle",]),
-  #                       n_stele = nrow(all_cells[all_cells$type == "stele",]),
-  #                       size_stele = mean(all_cells$area[all_cells$type == "stele"]),
-  #                       size_xylem = mean(all_cells$area[all_cells$type == "xylem"]),
-  #                       size_cortex = mean(all_cells$area[all_cells$type == "cortex"]),
-  #                       size_epidermis= mean(all_cells$area[all_cells$type == "epidermis"]),
-  #                       size_exodermis = mean(all_cells$area[all_cells$type == "exodermis"]),
-  #                       n_cortex = nrow(all_cells[all_cells$type == "cortex",]),
-  #                       diameter = max(rs1$x) - min(rs1$x),
-  #                       diameter_stele = max(rs1$x[rs1$type == "stele"]) - min(rs1$x[rs1$type == "stele"]),
-  #                       thickness_cortex = max(rs1$x[rs1$type == "cortex" & rs1$angle > 0 & rs1$angle < 1]) - 
-  #                         min(rs1$x[rs1$type == "cortex" & rs1$angle > 0 & rs1$angle < 1]))
-  # 
-  
+
   rs1$sorting <- c(1:nrow(rs1))
-  
-  
-  # nodes <- NULL
-  # for(i in unique(rs1$id_cell)){
-  #   temp <-rs1[rs1$id_cell == i,] %>% 
-  #     mutate(xx = c(x[-1],x[1])) %>% 
-  #     mutate(yy = c(y[-1],y[1]))
-  #   nodes <- rbind(nodes, temp)
-  # }
-  
-  nodes <- rs1 %>% 
-    group_by(id_cell) %>% 
-    dplyr::mutate(xx = c(x[-1],x[1])) %>% 
+
+  nodes <- rs1 %>%
+    group_by(id_cell) %>%
+    dplyr::mutate(xx = c(x[-1],x[1])) %>%
     dplyr::mutate(yy = c(y[-1],y[1]))
-  # 
+  #
   nodes %>%
     filter(type %in% c("stele", "xylem", "phloem")) %>%
     ggplot(aes(x, y, col=type, group=id_cell)) +
     geom_point() +
     geom_line()+
     coord_fixed()
-  
+
   # plot(nodes2$xx, nodes$xx)
-  
-  nodes <- nodes %>% 
-    ungroup() %>% 
-    mutate(vertical = ifelse(x == xx, "true", "false")) %>% 
+
+  nodes <- nodes %>%
+    ungroup() %>%
+    mutate(vertical = ifelse(x == xx, "true", "false")) %>%
 
     mutate(x1 = ifelse(x > xx, x, xx)) %>%
     mutate(x2 = ifelse(x > xx, xx, x)) %>%
     mutate(y1 = ifelse(x > xx, y, yy)) %>%
     mutate(y2 = ifelse(x > xx, yy, y)) %>%
     # Bug fix when wall is perfectly vertical
-    mutate(y1 = ifelse(x == xx, 
+    mutate(y1 = ifelse(x == xx,
                        ifelse(y > yy, yy, y), y1)) %>%
-    mutate(y2 = ifelse(x == xx, 
+    mutate(y2 = ifelse(x == xx,
                        ifelse(y > yy, y, yy), y2)) %>%
     mutate(wall_length = sqrt((x2-x1)^2 + (y2-y1)^2)) %>%
     mutate(wall_length2 = sqrt((xx-x)^2 + (yy-y)^2))
 
-  walls <- nodes[!duplicated(nodes[,c('x1', 'x2', 'y1', 'y2')]),] %>% 
+  walls <- nodes[!duplicated(nodes[,c('x1', 'x2', 'y1', 'y2')]),] %>%
     dplyr::select(c(x1, x2, y1, y2))
-  
+
   walls$id_wall <- c(1:nrow(walls))
-  
+
   nodes <- merge(nodes, walls, by=c("x1", "x2", "y1", "y2"))
-  nodes <- nodes %>% 
+  nodes <- nodes %>%
     arrange(sorting)
-  
+
   t9 <- proc.time()
-  
+
   if(verbatim){
     message("---------------")
     message("Time analysis: ")
@@ -788,15 +649,15 @@ create_anatomy <- function(path = NULL,  # PAth
     message("-- Merging")
     print(t8-t7)
     message("-- Tidying")
-    print(t9-t8)    
+    print(t9-t8)
     message("------ All")
     print(t9-t1)
   }
-  
-  
-  
-  return(list(nodes = nodes, 
-              walls = walls, 
-              cells=all_cells, 
+
+
+
+  return(list(nodes = nodes,
+              walls = walls,
+              cells=all_cells,
               output = output))
 }
