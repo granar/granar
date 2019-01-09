@@ -14,10 +14,11 @@ create_anatomy(path = NULL, parameters = NULL, verbatim = F)
 \item{verbatim}{Display textual information aboutt he simulation. Default = NULL.}
 }
 \description{
-This function creates a 2D root cross section anatomy based on global parameters
+This function creates a 2D root cross section anatomy based on global parameters. It is the core of GRANAR.
 }
 \examples{
 create_anatomy("PATH_TO_XLM_FILE")
 
 }
+\keyword{anatomy}
 \keyword{root}

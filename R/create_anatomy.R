@@ -38,7 +38,6 @@ create_anatomy <- function(path = NULL,  # PAth
       for(tf in to_find){
         if (nrow(params[params$name == tf,]) == 0){
           warning(paste0("Could not find the '",tf,"' information in the parameter input"))
-          return(NULL)
         }
       }
     cols_to_find <- c("name", "type", "value")
