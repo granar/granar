@@ -54,8 +54,7 @@ create_anatomy <- function(path = NULL,  # PAth
 
   # PARAMETERS -----
   plant_type <- params$value[params$name == "planttype"]
-  # random_fact <- params$value[params$name == "randomness"] / 100
-  random_fact <- 0#params$value[params$name == "randomness"] / 10 * params$value[params$name == "stele" & params$type == "cell_diameter"]
+  random_fact <- params$value[params$name == "randomness"] / 10 * params$value[params$name == "stele" & params$type == "cell_diameter"]
   stele_diameter <- params$value[params$name == "stele" & params$type == "layer_diameter"]
   n_aerenchyma_files <- params$value[params$name == "aerenchyma" & params$type == "n_files"]
   proportion_aerenchyma <- params$value[params$name == "aerenchyma" & params$type == "proportion"]
@@ -150,7 +149,10 @@ create_anatomy <- function(path = NULL,  # PAth
       y <- center + (radius * sin(angles))
     }else if(all_layers$name[i] == "stele"){
       x <- center + (radius * cos(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
-      y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)##* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
+      y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)
+    }else if(all_layers$name[i] == "cortex"){
+      x <- center + (radius * cos(angles)) + runif(all_layers$n_cell[i], -random_fact*3, random_fact*3)#* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
+      y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact*3, random_fact*3)##* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
     }else{
       x <- center + (radius * cos(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
       y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
@@ -414,7 +416,7 @@ create_anatomy <- function(path = NULL,  # PAth
   safe_cortex_layer <- min(rs2$id_layer[rs2$type == "cortex"])
 
   rs2$type <- as.character(rs2$type)
-  angle <- runif(1, 0.8, 1) * pi/n_aerenchyma_files
+  angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
   for(j in c(1:n_aerenchyma_files)){
     angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
     rs2 <- rs2 %>%
@@ -444,7 +446,8 @@ create_anatomy <- function(path = NULL,  # PAth
 
 
   ggplot(rs1, aes(x, y, group=id_cell, fill=type)) +
-    geom_polygon(colour="white")
+    geom_polygon(colour="white")+
+    coord_fixed()
 
 
   # Merge the adgecent xylem cells
@@ -503,108 +506,90 @@ create_anatomy <- function(path = NULL,  # PAth
     filter(remove == "no")
 
   # move bad points further away from closest centroid
-  all_xyl <- rs1 %>% filter(type == "xylem")
+
   rs1 <- rs1 %>%
     mutate(bad = ifelse(x %in% bad_points$x & y %in% bad_points$y, "yes", "no"))
   groups <- groups%>%
     mutate(bad = ifelse(x %in% bad_points$x & y %in% bad_points$y, "yes", "no"))
 
-  rs1%>%
+ rs1%>%
     filter(type == "xylem" | type == "stele")%>%
     ggplot(aes(x,y))+
     geom_polygon(aes(group = id_cell, fill = type), colour="white")
+ groups%>%
+   filter(type == "xylem" | type == "stele")%>%
+   ggplot(aes(x,y))+
+   geom_polygon(aes(group = id_cell, fill = type), colour="white")+
+   geom_point()+
+   geom_point(aes(mx,my))
 
-   how_many_bad_points <- c(1:nrow(bad_points))
-   pb = txtProgressBar(min = 0, max = length(how_many_bad_points), initial = 0, style = 3)
-   for(i in how_many_bad_points){
-     setTxtProgressBar(pb,i)
-     bdp <- bad_points[i,]
+ # rs1 <- rs1%>%
+ #  ungroup()
+ # how_many_bad_points <- c(1:nrow(bad_points))
+ # all_xyl <- rs1 %>% filter(type == "xylem")
+ # pb = txtProgressBar(min = 0, max = length(how_many_bad_points), initial = 0, style = 3)
+ #  for(i in how_many_bad_points){
+ #    setTxtProgressBar(pb,i)
+ #    bdp <- bad_points[i,]%>%
+ #      ungroup()%>%
+ #      mutate(bad = "yes")
+#
+ #   xyl <- groups %>%
+ #     filter(bad == "yes")
+ #   xyl2 <- rs1 %>%
+ #     filter(id_cell %in% xyl$id_cell)  %>%
+ #     filter(x %in% all_xyl$x & y %in% all_xyl$y)
+#
+ #    closest<-groups%>%
+ #      ungroup()%>%
+ #      filter(bad == "no")%>%
+ #      mutate(x_to_p = sqrt((x-bdp$x)^2+(y-bdp$y)^2))%>%
+ #      filter(x_to_p == min(x_to_p))
+#
+ #    # Neighbourhood
+ #    right <- groups%>%
+ #      ungroup()%>%
+ #      filter(id_group == closest$id_group & bad == "no")%>%
+ #      arrange(atan)
+ #    right <- rbind(right[nrow(right), ], right, right[1,])
+ #    tmp <- which(right$x == closest$x)
+ #    ri <- right[tmp[1]+1, ]
+ #    le <- right[tmp[length(tmp)]-1, ]
+#
+ #    tmp <- rbind(closest[,-15], ri, le, bdp)
+ #    if(tmp$angle[4] >= 0 & tmp$angle[1] <= 0){print("BEPPPPP")}
+ #    if(tmp$angle[4] <= 0 & tmp$angle[1] >= 0){print("BEPPPPP")}
+ #    if(tmp$angle[4] - tmp$angle[1] > 0){
+ #      closest_2 <- le
+ #    }else{closest_2 <- ri}
+#
+ #    res <- line.line.intersection(c(out_cells$x[1], out_cells$y[1]),
+ #                                  c(out_cells$x[2], out_cells$y[2]),
+ #                                  c(xyl2$x[1], xyl2$y[1]),
+ #                                  c(xyl2$x[2], xyl2$y[2]))
+ #    # line <- lm(c(bdp$y, closest$my)~c(bdp$x, closest$mx))
+ #    # if(is.na(line$coefficients[2])){line$coefficients[2] <- 0}
+ #    # line2 <- lm(c(closest$y, closest_2$y)~c(closest$x, closest_2$x ))
+ #    # if(is.na(line2$coefficients[2])){line2$coefficients[2] <- 0}
+ #    # new_x <- unname((line2$coefficients[1]-line$coefficients[1])/
+ #    #                   (line$coefficients[2]-line2$coefficients[2]))
+ #    # new_y <- unname(line$coefficients[2]*new_x + line$coefficients[1])
+#
+ #     # Move the points in the stele cells
+ #     bdp$x <- new_x
+ #     bdp$y <- new_y
+ #     bdp <- bdp[,-14]%>%
+ #       mutate(remove = "no", bad = "new")
+ #     ## Add a point into the xylem vessel
+ #     new_xyl <- closest[,-c(14,15)]%>%
+ #       mutate(remove = "new", bad = "new")
+ #     new_xyl$x[1] <- new_x
+ #     new_xyl$y[1] <- new_y
+ #     rs1 <- rbind(rs1, new_xyl, bdp)
+ #  }
+#
 
-    xyl <- groups %>%
-      filter(bad == "yes")
-#     xyl2 <- rs1 %>%
-#       filter(id_cell %in% xyl$id_cell)  %>%
-#       filter(x %in% all_xyl$x & y %in% all_xyl$y)
-     closest<-groups%>%
-       ungroup()%>%
-       filter(bad == "no")%>%
-       mutate(x_to_p = sqrt((x-bdp$x)^2+(y-bdp$y)^2))%>%
-       filter(x_to_p == min(x_to_p))
-
-     # Neighbourhood
-     right <- groups%>%
-       ungroup()%>%
-       filter(id_group == closest$id_group & bad == "no")%>%
-       arrange(atan)
-     right <- rbind(right[nrow(right), ], right, right[1,])
-     tmp <- which(right$x == closest$x)
-     ri <- right[tmp[1]+1, ]
-     le <- right[tmp[length(tmp)]-1, ]
-
-     cent <- distinct(groups, id_group, mx,my)%>%
-       ungroup()%>%
-       mutate(cent_to_p = sqrt((mx-bdp$x)^2+(my-bdp$y)^2),
-              x_bad = bdp$x, y_bad = bdp$y,
-              x_cx = closest$x, y_cx = closest$y,
-              x_right = ri$x, y_right = ri$y,
-              x_left = le$x, y_left = le$y,
-              cx_le = sqrt((x_cx-x_left)^2+(y_cx-y_left)^2),
-              cx_ri = sqrt((x_cx-x_right)^2+(y_cx-y_right)^2))%>%
-       filter(cent_to_p == min(cent_to_p))
-
-     cent%>%
-       ggplot()+
-       geom_point(aes(mx,my), shape = "x", size = 2)+
-       geom_point(aes(x_bad,y_bad), colour = "red")+
-       geom_point(aes(x_cx,y_cx))+
-       geom_point(aes(x_right,y_right, size = cx_ri))+
-       geom_point(aes(x_left,y_left, size = cx_le))
-
-
-     if(cent$cx_le > cent$cx_ri){
-     x <- c(unique(cent$x_cx), unique(cent$x_left))
-     y <- c(unique(cent$y_cx), unique(cent$y_left))
-     }else{
-     x <- c(unique(cent$x_cx), unique(cent$x_right))
-     y <- c(unique(cent$y_cx), unique(cent$y_right))
-     }
-     line <- lm(y~x)
-     if(is.na(line$coefficients[2])){line$coefficients[2] <- 0}
-     line2 <- lm(c(cent$my, cent$y_bad)~c(cent$mx, cent$x_bad))
-     if(is.na(line2$coefficients[2])){line2$coefficients[2] <- 0}
-     new_x <- unname((line2$coefficients[1]-line$coefficients[1])/
-                       (line$coefficients[2]-line2$coefficients[2]))
-     new_y <- unname(line$coefficients[2]*new_x + line$coefficients[1])
-     if(abs(new_x) > 1){print(i)}
-
-
-     # Move the points in the stele cells
-   rs1$x[rs1$x == bdp$x & rs1$y == bdp$y] <- new_x
-   rs1$y[rs1$x == bdp$x & rs1$y == bdp$y] <- new_y
-
-   ## Add a point into the xylem vessel
-   place <- which(all_xyl$x == cent$x_cx[1] & all_xyl$y == cent$y_cx[1])
-   if(length(place)>1){
-    new_xyl <- all_xyl[place,]
-    new_xyl$x <- new_x
-    new_xyl$y <- new_y
-    rs1 <- rbind(rs1, new_xyl)
-   }else if(length(place) == 1){
-          rs1 <- rs1 %>%
-            mutate(remove = ifelse(x %in% xyl$x & y %in% xyl$y, "yes", "no")) %>%
-            filter(remove == "no")
-        }
-   }
-
-rs1%>%
-  filter(type == "xylem" | type == "stele")%>%
-  ggplot(aes(x,y))+
-  geom_polygon(aes(group = id_cell, fill = type), colour = "white")+
-  coord_fixed()
-
-
-
-#   all_xyl <- rs1 %>% filter(type == "xylem")
+#  all_xyl <- rs1 %>% filter(type == "xylem")
 #   how_many_bad_points <- c(1:nrow(bad_points))
 #   pb = txtProgressBar(min = 0, max = length(how_many_bad_points), initial = 0, style = 3)
 #   for(i in how_many_bad_points){
@@ -659,15 +644,18 @@ rs1%>%
 
   t8 <- proc.time()
 
-
-
-
-
   # Reset the ids of the cells to be continuous
   ids <- data.frame(id_cell = unique(rs1$id_cell))
   ids$new <- c(1:nrow(ids))
   rs1 <- merge(rs1, ids, by="id_cell")
   rs1$id_cell <- rs1$new
+
+  rs1%>%
+    filter(type == "stele" | type == "xylem")%>%
+    ggplot(aes(x,y))+
+    geom_polygon(aes(group = id_cell, fill = type), colour = "white")+
+    geom_point(aes(shape = bad), alpha = 0.5)+
+    coord_fixed()
 
   all_cells <- merge(all_cells, ids, by="id_cell")
   all_cells$id_cell <- all_cells$new
