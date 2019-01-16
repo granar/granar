@@ -49,6 +49,7 @@ create_anatomy <- function(path = NULL,  # PAth
     }
 
   }
+  t_1 <- Sys.time()
 
   t1 <- proc.time()
 
@@ -412,17 +413,57 @@ create_anatomy <- function(path = NULL,  # PAth
   if(verbatim) message("Killing cells to make aerenchyma")
 
   angle_inc <- (2 * pi) / n_aerenchyma_files
-  angle_range_inc <- (2 * pi * proportion_aerenchyma / 2) / n_aerenchyma_files
+  angle_range_inc <- (2 * pi * proportion_aerenchyma / 100) / n_aerenchyma_files
   safe_cortex_layer <- min(rs2$id_layer[rs2$type == "cortex"])
 
+  ini_cortex_area <- sum(all_cells$area[all_cells$type == "cortex" |
+                                          all_cells$type == "endodermis" |
+                                          all_cells$type == "exodermis" |
+                                          all_cells$type == "epidermis"])
+  surface_to_kill <- ini_cortex_area*proportion_aerenchyma
+  cortex_area <- ini_cortex_area
+  m_cortex_a <- mean(all_cells$area[all_cells$type == "cortex"])
+
   rs2$type <- as.character(rs2$type)
-  angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
-  for(j in c(1:n_aerenchyma_files)){
+
+
+  `%!in%` <- compose(`!`, `%in%`)
+  again <- 0
+  try_nbr <- 0
+  while(cortex_area > ini_cortex_area - surface_to_kill & again == 0){
+    try_nbr <- try_nbr + 1
+    angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
     angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
-    rs2 <- rs2 %>%
-      filter(!(id_layer != safe_cortex_layer & type == "cortex" & angle > angle_range[1] & angle < angle_range[2]))
-    angle <- angle + angle_inc
+    for(j in c(1:n_aerenchyma_files)){
+         angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
+         rs3 <- rs2 %>%
+           filter(!(id_layer != safe_cortex_layer & type == "cortex" & angle > angle_range[1] & angle < angle_range[2]))
+         angle <- angle + angle_inc
+    }
+    missing <- length(which(unique(all_cells$id_cell) %!in% unique(rs3$id_cell)))
+    cortex_area <- cortex_area - missing*m_cortex_a
+    again <- 0
+    if(cortex_area < (ini_cortex_area - surface_to_kill)-(ini_cortex_area - surface_to_kill)*0.05){
+      angle_range_inc <- angle_range_inc-angle_range_inc*0.5
+      again <- 1
+      if(try_nbr > 10 & n_aerenchyma_files > 2){
+        print("the number of aerenchyma file has been decrease")
+        n_aerenchyma_files <- n_aerenchyma_files-1}
+    }
+    angle_range_inc <- angle_range_inc+angle_range_inc*0.1
+    if(try_nbr > 100) break
   }
+  rs2 <- rs3
+
+
+
+  # angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
+  # for(j in c(1:n_aerenchyma_files)){
+  #   angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
+  #   rs2 <- rs2 %>%
+  #     filter(!(id_layer != safe_cortex_layer & type == "cortex" & angle > angle_range[1] & angle < angle_range[2]))
+  #   angle <- angle + angle_inc
+  # }
 
   t7 <- proc.time()
 
@@ -689,7 +730,8 @@ create_anatomy <- function(path = NULL,  # PAth
   output <-rbind(output, data.frame(io="output", name="all", type="n_cells", value = nrow(all_cells)))
   output <-rbind(output, data.frame(io="output", name="all", type="layer_area", value = sum(one_cells$area)))
 
-  print(proc.time() - tt)
+
+  print(Sys.time()-t_1)
 
   rs1$sorting <- c(1:nrow(rs1))
 
@@ -734,6 +776,7 @@ create_anatomy <- function(path = NULL,  # PAth
     arrange(sorting)
 
   t9 <- proc.time()
+
 
   if(verbatim){
     message("---------------")
