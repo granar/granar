@@ -374,6 +374,9 @@ create_anatomy <- function(path = NULL,  # PAth
 
   # Get the voronio data
   vtess <- deldir(all_cells$x, all_cells$y)
+  if(is.null(vtess)){
+    return(NULL)
+    }
 
   # Remove the ouside cells, to get the voronoi data straight
   all_cells <- all_cells  %>%
@@ -414,7 +417,7 @@ create_anatomy <- function(path = NULL,  # PAth
 
   angle_inc <- (2 * pi) / n_aerenchyma_files
   angle_range_inc <- (2 * pi * proportion_aerenchyma / 100) / n_aerenchyma_files
-  safe_cortex_layer <- min(rs2$id_layer[rs2$type == "cortex"])
+  safe_cortex_layer <- c(min(rs2$id_layer[rs2$type == "cortex"]))
 
   ini_cortex_area <- sum(all_cells$area[all_cells$type == "cortex" |
                                           all_cells$type == "endodermis" |
@@ -427,6 +430,7 @@ create_anatomy <- function(path = NULL,  # PAth
   rs2$type <- as.character(rs2$type)
 
 
+  cortex_layer <- sort(unique(rs2$id_layer[rs2$type == "cortex"]))
   `%!in%` <- compose(`!`, `%in%`)
   again <- 0
   try_nbr <- 0
@@ -434,25 +438,32 @@ create_anatomy <- function(path = NULL,  # PAth
     try_nbr <- try_nbr + 1
     angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
     angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
+    rs3 <- rs2
     for(j in c(1:n_aerenchyma_files)){
          angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
-         rs3 <- rs2 %>%
-           filter(!(id_layer != safe_cortex_layer & type == "cortex" & angle > angle_range[1] & angle < angle_range[2]))
+         rs3 <- rs3 %>%
+           filter(!(id_layer %!in% safe_cortex_layer & type == "cortex" & angle > angle_range[1] & angle < angle_range[2]))
          angle <- angle + angle_inc
     }
     missing <- length(which(unique(all_cells$id_cell) %!in% unique(rs3$id_cell)))
     cortex_area <- cortex_area - missing*m_cortex_a
+
     again <- 0
+
     if(cortex_area < (ini_cortex_area - surface_to_kill)-(ini_cortex_area - surface_to_kill)*0.05){
       angle_range_inc <- angle_range_inc-angle_range_inc*0.5
       again <- 1
-      if(try_nbr > 10 & n_aerenchyma_files > 2){
-        print("the number of aerenchyma file has been decrease")
-        n_aerenchyma_files <- n_aerenchyma_files-1}
+      print("the number of aerenchyma file has been decrease")
+      last_cortex_layer <- utils::tail(cortex_layer, length(safe_cortex_layer))
+      safe_cortex_layer <- c(cortex_layer[1], last_cortex_layer)
     }
     angle_range_inc <- angle_range_inc+angle_range_inc*0.1
-    if(try_nbr > 100) break
+    if(try_nbr > 100){
+      warning("fail to kill cortex cells")
+      return(NULL)
+    }
   }
+
   rs2 <- rs3
 
 
@@ -511,9 +522,9 @@ create_anatomy <- function(path = NULL,  # PAth
       temp2 <- temp[rem,]
 
       temp <- temp[hull$arcs[,7],] %>%
-        mutate(area = sum(area)) %>%
         mutate(id_cell = min(id_cell)) %>%
         dplyr::group_by(id_cell) %>%
+        dplyr::mutate(area = sum(area))%>%
         dplyr::mutate(my = mean(y)) %>%
         dplyr::mutate(mx = mean(x)) %>%
         dplyr::mutate(atan = atan2(y-my, x - mx)) %>%
@@ -701,35 +712,40 @@ create_anatomy <- function(path = NULL,  # PAth
   all_cells <- merge(all_cells, ids, by="id_cell")
   all_cells$id_cell <- all_cells$new
 
+
   tt <- proc.time()
   # outputing the inputs
   output <- data.frame(io = "input", name = params$name, type = params$type, value = params$value)
 
+  one_cells <- rs1%>%
+    distinct(id_cell, type, id_group, area, .keep_all = TRUE)
+  all_cells <- merge(all_cells, one_cells, by = "id_cell")
+
 
   # adding the outputs by cell layers
-  out <- ddply(all_cells, .(type), summarise, n_cells=length(type),
-                                                layer_area = sum(area),
-                                                cell_area = mean(area)) %>%
-    mutate(name = type) %>%
-    dplyr::select(-type) %>%
+  out <- ddply(all_cells, .(type.y), summarise, n_cells=length(type.y),
+                                                layer_area = sum(area.y),
+                                                cell_area = mean(area.y)) %>%
+    mutate(name = type.y) %>%
+    dplyr::select(-type.y) %>%
     gather(key = "type", value = "value", n_cells, layer_area, cell_area) %>%
     mutate(io = "output")%>%
     dplyr::select(io, everything())
   output <- rbind(output, out)
 
-  one_cells <- rs1%>%
-    distinct(id_cell, type, id_group, area, .keep_all = TRUE)
-  type_area <- one_cells%>%
-    dplyr::group_by(type)%>%
-    dplyr::summarise(layer_area = sum(area))
 
+  all_cells%>%
+    ggplot(aes(area.x, area.y, colour = type.x))+
+    geom_point()
 
-  output$value[output$io == "output" & output$name == "xylem" & output$type == "layer_area"] <- type_area$layer_area[type_area$type == "xylem"]
-  output$value[output$io == "output" & output$name == "stele" & output$type == "layer_area"] <- type_area$layer_area[type_area$type == "stele"]
+  time <- as.numeric(Sys.time()-t_1)
+
   # finaly we add the outputs for the whole section
   output <-rbind(output, data.frame(io="output", name="all", type="n_cells", value = nrow(all_cells)))
-  output <-rbind(output, data.frame(io="output", name="all", type="layer_area", value = sum(one_cells$area)))
-
+  output <-rbind(output, data.frame(io="output", name="all", type="layer_area", value = sum(all_cells$area.y)))
+  output <-rbind(output, data.frame(io="output", name="aerenchyma", type="layer_area", value = (ini_cortex_area - cortex_area)))
+  output <-rbind(output, data.frame(io="output", name="aerenchyma", type="proportion", value = (ini_cortex_area - cortex_area)/ini_cortex_area))
+  output <-rbind(output, data.frame(io="output", name="simulation", type="time", value = time))
 
   print(Sys.time()-t_1)
 
