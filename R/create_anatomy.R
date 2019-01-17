@@ -417,6 +417,7 @@ create_anatomy <- function(path = NULL,  # PAth
 
   angle_inc <- (2 * pi) / n_aerenchyma_files
   angle_range_inc <- (2 * pi * proportion_aerenchyma / 100) / n_aerenchyma_files
+  angle_range_inc_ini <- angle_range_inc
   safe_cortex_layer <- c(min(rs2$id_layer[rs2$type == "cortex"]))
 
   ini_cortex_area <- sum(all_cells$area[all_cells$type == "cortex" |
@@ -424,8 +425,11 @@ create_anatomy <- function(path = NULL,  # PAth
                                           all_cells$type == "exodermis" |
                                           all_cells$type == "epidermis"])
   surface_to_kill <- ini_cortex_area*proportion_aerenchyma
+
   cortex_area <- ini_cortex_area
   m_cortex_a <- mean(all_cells$area[all_cells$type == "cortex"])
+
+  to_kill <- round(surface_to_kill/m_cortex_a)
 
   rs2$type <- as.character(rs2$type)
 
@@ -434,7 +438,8 @@ create_anatomy <- function(path = NULL,  # PAth
   `%!in%` <- compose(`!`, `%in%`)
   again <- 0
   try_nbr <- 0
-  while(cortex_area > ini_cortex_area - surface_to_kill & again == 0){
+  missing <- 0
+  while(missing < ini_cortex_area - surface_to_kill + (ini_cortex_area - surface_to_kill)*0.1| again == 0){
     try_nbr <- try_nbr + 1
     angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
     angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
@@ -446,19 +451,21 @@ create_anatomy <- function(path = NULL,  # PAth
          angle <- angle + angle_inc
     }
     missing <- length(which(unique(all_cells$id_cell) %!in% unique(rs3$id_cell)))
-    cortex_area <- cortex_area - missing*m_cortex_a
+    cortex_area <- ini_cortex_area - missing*m_cortex_a
 
     again <- 0
-
-    if(cortex_area < (ini_cortex_area - surface_to_kill)-(ini_cortex_area - surface_to_kill)*0.05){
-      angle_range_inc <- angle_range_inc-angle_range_inc*0.5
-      again <- 1
-      print("the number of aerenchyma file has been decrease")
-      last_cortex_layer <- utils::tail(cortex_layer, length(safe_cortex_layer))
-      safe_cortex_layer <- c(cortex_layer[1], last_cortex_layer)
+    if(missing > to_kill){
+      angle_range_inc <- angle_range_inc - angle_range_inc*0.01
     }
-    angle_range_inc <- angle_range_inc+angle_range_inc*0.1
-    if(try_nbr > 100){
+    else if (missing < to_kill) {
+      angle_range_inc <- angle_range_inc + angle_range_inc*0.01
+    }else break
+
+    if(cortex_area < (ini_cortex_area - surface_to_kill)-(ini_cortex_area - surface_to_kill)*0.1){
+      again <- 1
+    }
+
+    if(try_nbr > 1000){
       warning("fail to kill cortex cells")
       return(NULL)
     }
