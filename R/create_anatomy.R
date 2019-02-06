@@ -271,7 +271,7 @@ create_anatomy <- function(path = NULL,  # PAth
   }else if(plant_type == 1){ # MONOCOT
 
     #modification 05/01
-    r= max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "cell_diameter" & params$name == "stele"])*2 -
+    r= max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "cell_diameter" & params$name == "stele"])*1.5 -
       (params$value[params$type == "max_size" & params$name == "xylem"])/2
     xyl <- data.frame(r = r,
                       d = params$value[params$type == "max_size" & params$name == "xylem"])
@@ -582,6 +582,12 @@ create_anatomy <- function(path = NULL,  # PAth
    geom_point()+
    geom_point(aes(mx,my))
 
+ xylem_area <- groups%>% # This value seems low
+   distinct(id_group, area, my, mx)%>%
+   group_by(id_group)%>%
+   summarise(area = sum(area))
+
+
  # rs1 <- rs1%>%
  #  ungroup()
  # how_many_bad_points <- c(1:nrow(bad_points))
@@ -749,6 +755,7 @@ create_anatomy <- function(path = NULL,  # PAth
 
   # finaly we add the outputs for the whole section
   output <-rbind(output, data.frame(io="output", name="all", type="n_cells", value = nrow(all_cells)))
+
   output <-rbind(output, data.frame(io="output", name="all", type="layer_area", value = sum(all_cells$area.y)))
   output <-rbind(output, data.frame(io="output", name="aerenchyma", type="layer_area", value = (ini_cortex_area - cortex_area)))
   output <-rbind(output, data.frame(io="output", name="aerenchyma", type="proportion", value = (ini_cortex_area - cortex_area)/ini_cortex_area))
