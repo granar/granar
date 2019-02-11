@@ -11,7 +11,6 @@
 #' create_anatomy("PATH_TO_XLM_FILE")
 #'
 
-
 create_anatomy <- function(path = NULL,  # PAth
                            parameters = NULL,
                            verbatim = F){
@@ -191,6 +190,7 @@ create_anatomy <- function(path = NULL,  # PAth
 
   all_cells$id_group <- 0
 
+  # Create vascular vessels for dicot or monocot
   if(plant_type == 2){ # DICOT
     xyl <- data.frame(r=numeric(2), d=numeric(2))
     xyl$r <- c(0, max(all_cells$radius[all_cells$type == "stele"]))
@@ -215,7 +215,6 @@ create_anatomy <- function(path = NULL,  # PAth
       }
       xyl <- rbind(xyl, data.frame(r = rnew,d = dnew))
       i <- i+1
-
     }
     xyl <- xyl %>% arrange(r)
     while(xyl$d[nrow(xyl)] >= xyl$d[nrow(xyl)-1]){
@@ -319,7 +318,7 @@ create_anatomy <- function(path = NULL,  # PAth
       }
 
       # Phloem vessels are built between xylem ones
-      phl <- data.frame(r = r,
+      phl <- data.frame(r = r + (params$value[params$type == "cell_diameter" & params$name == "stele"])*1.5,
                         d = params$value[params$type == "cell_diameter" & params$name == "stele"])
       angle_seq_ph <- seq(from = ((2 * pi) / n_xylem_files ) /2, to = (2*pi), by = (2 * pi) / n_xylem_files)
       for(angle in angle_seq_ph){
@@ -350,15 +349,20 @@ create_anatomy <- function(path = NULL,  # PAth
   # Change the identity of stele cells to be replaced by xylem cells
   for(i in c(1:nrow(all_xylem))){
     # print(i)
+    if(plant_type == 1){
     all_cells <- all_cells %>%
        mutate(type = ifelse(((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/2)^2 & type == "stele"),
                             "xylem", type)) %>%
       mutate(id_group = ifelse(((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/2)^2 & type == "xylem"),
-                               all_xylem$id_group[i], id_group)) #%>%
+                               all_xylem$id_group[i], id_group))
+    }
 
-    # all_cells <- all_cells %>%
-    # filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
-  }
+    if(plant_type == 2){
+      all_cells <- all_cells %>%
+      filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
+    }
+    }
+
 
 
   # reset the cell ids
@@ -509,7 +513,8 @@ create_anatomy <- function(path = NULL,  # PAth
     coord_fixed()
 
 
-  # Merge the adgecent xylem cells
+  # Merge the adgecent xylem cells to make metaxylem vessels
+  if (plant_type == 1){
   if(verbatim) message("Merging xylem vessels")
   groups <- NULL
   lost_points <- NULL
@@ -570,11 +575,14 @@ create_anatomy <- function(path = NULL,  # PAth
     mutate(bad = ifelse(x %in% bad_points$x & y %in% bad_points$y, "yes", "no"))
   groups <- groups%>%
     mutate(bad = ifelse(x %in% bad_points$x & y %in% bad_points$y, "yes", "no"))
+  }
 
  rs1%>%
     filter(type == "xylem" | type == "stele")%>%
     ggplot(aes(x,y))+
     geom_polygon(aes(group = id_cell, fill = type), colour="white")
+
+ if (plant_type == 1){
  groups%>%
    filter(type == "xylem" | type == "stele")%>%
    ggplot(aes(x,y))+
@@ -586,8 +594,10 @@ create_anatomy <- function(path = NULL,  # PAth
    distinct(id_group, area, my, mx)%>%
    group_by(id_group)%>%
    summarise(area = sum(area))
+ }
 
 
+ ###### TRY 0.2 Convex Xylem ########
  # rs1 <- rs1%>%
  #  ungroup()
  # how_many_bad_points <- c(1:nrow(bad_points))
@@ -697,6 +707,9 @@ create_anatomy <- function(path = NULL,  # PAth
 #         filter(remove == "no")
 #     }
 #   }
+
+#####################
+
   rs1 <- rs1 %>%
       dplyr::group_by(id_cell) %>%
       dplyr::mutate(my = mean(y)) %>%
@@ -715,12 +728,12 @@ create_anatomy <- function(path = NULL,  # PAth
   rs1 <- merge(rs1, ids, by="id_cell")
   rs1$id_cell <- rs1$new
 
-  rs1%>%
-    filter(type == "stele" | type == "xylem")%>%
-    ggplot(aes(x,y))+
-    geom_polygon(aes(group = id_cell, fill = type), colour = "white")+
-    geom_point(aes(shape = bad), alpha = 0.5)+
-    coord_fixed()
+  # rs1%>%
+  #   filter(type == "stele" | type == "xylem")%>%
+  #   ggplot(aes(x,y))+
+  #   geom_polygon(aes(group = id_cell, fill = type), colour = "white")+
+  #   geom_point(aes(shape = bad), alpha = 0.5)+
+  #   coord_fixed()
 
   all_cells <- merge(all_cells, ids, by="id_cell")
   all_cells$id_cell <- all_cells$new
@@ -805,6 +818,16 @@ create_anatomy <- function(path = NULL,  # PAth
   nodes <- nodes %>%
     arrange(sorting)
 
+  # wrong_cell <- nodes%>%
+  #   dplyr::group_by(id_cell)%>%
+  #   dplyr::summarise(n_wall = n())%>%
+  #   filter(n_wall < 3)
+  #
+  # if(nrow(wrong_cell) > 0){
+  # nodes <- nodes%>%
+  #   filter(id_cell %!in% wrong_cell$id_cell )
+  # }
+
   t9 <- proc.time()
 
 
@@ -830,7 +853,6 @@ create_anatomy <- function(path = NULL,  # PAth
     message("------ All")
     print(t9-t1)
   }
-
 
 
   return(list(nodes = nodes,
