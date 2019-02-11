@@ -8,7 +8,12 @@
 #' @keywords root anatomy
 #' @export
 #' @examples
+#'
 #' create_anatomy("PATH_TO_XLM_FILE")
+#'
+#' # OR
+#'
+#' create_anatomy(parameters = params)
 #'
 
 create_anatomy <- function(path = NULL,  # PAth
@@ -20,9 +25,6 @@ create_anatomy <- function(path = NULL,  # PAth
     warning("Please specify a parameter set for the simulation")
     return(NULL)
   }
-
-  if(verbatim) message("Loading parameters")
-
   if(!is.null(path)){
     params <- read_param_xml(path)
   }
@@ -48,11 +50,12 @@ create_anatomy <- function(path = NULL,  # PAth
     }
 
   }
-  t_1 <- Sys.time()
 
+  t_1 <- Sys.time()
   t1 <- proc.time()
 
   # PARAMETERS -----
+  if(verbatim) message("Loading parameters")
   plant_type <- params$value[params$name == "planttype"]
   random_fact <- params$value[params$name == "randomness"] / 10 * params$value[params$name == "stele" & params$type == "cell_diameter"]
   stele_diameter <- params$value[params$name == "stele" & params$type == "layer_diameter"]
@@ -176,9 +179,9 @@ create_anatomy <- function(path = NULL,  # PAth
 
   t4 <- proc.time()
 
-  ggplot(all_cells, aes(x, y, colour=type)) +
-    geom_point() +
-    coord_fixed()
+  # ggplot(all_cells, aes(x, y, colour=type)) +
+  #   geom_point() +
+  #   coord_fixed()
 
 
   #//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -355,19 +358,60 @@ create_anatomy <- function(path = NULL,  # PAth
                             "xylem", type)) %>%
       mutate(id_group = ifelse(((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/2)^2 & type == "xylem"),
                                all_xylem$id_group[i], id_group))
-    }
-
-    if(plant_type == 2){
+    }else if(plant_type == 2){
       all_cells <- all_cells %>%
       filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
-    }
-    }
 
+      }
+  }
+
+  if(plant_type == 2){
+    all_xylem <- all_cells[all_cells$type == "xylem",]%>%
+      mutate(radius = round(radius,2),
+             d = c(xyl$d[1], rep(xyl$d[2:length(xyl$d)],
+                                 max(unique(all_cells$id_group[all_cells$type == "xylem"]))-1)))%>%
+      # Remove xylem cell that are to close to each other
+      distinct(angle, radius, .keep_all = T)
+
+    all_cells <- all_cells[all_cells$type != "xylem",]
+
+    # Make circular frontier for xylem
+    x_cir <- seq(-1,1,1/8)
+    y_p <- sqrt(1-x_cir^2)
+    y_m <- -sqrt(1-x_cir^2)
+    xyl_frontier <- NULL
+    k <- 1
+    for (i_xyl in 1:nrow(all_xylem)) {
+      tmp <- all_xylem[i_xyl,]
+      cir <- tibble(x = rep(x_cir,2), y = c(y_p,y_m))
+      cir <- cir*abs(tmp$d)/2
+      cir$x <- cir$x + tmp$x
+      cir$y <- cir$y + tmp$y
+      xyl_frontier <- rbind(xyl_frontier, data.frame(angle = tmp$angle,
+                                                     radius = tmp$radius,
+                                                     x = cir$x,
+                                                     y = cir$y,
+                                                     id_layer = 20,
+                                                     id_cell = 1,
+                                                     type = "xylem",
+                                                     order = 1.5,
+                                                     id_group = k))
+      xyl_frontier%>%
+        ggplot()+
+        geom_point(aes(x,y, colour = factor(id_group)))+
+        coord_fixed()
+      k <- k + 1
+    all_cells <- rbind(all_cells, xyl_frontier)
+    }
+  }
 
 
   # reset the cell ids
   all_cells$id_cell <- c(1:nrow(all_cells))
-
+  all_cells%>%
+    ggplot()+
+    geom_point(aes(x,y,colour = factor(id_group)))+
+    coord_fixed()
   t5 <- proc.time()
 
 
@@ -390,11 +434,9 @@ create_anatomy <- function(path = NULL,  # PAth
   cell_size <- vtess$summary
   ids <- all_cells$id_cell
   cell_size$id_cell <- c(1:nrow(cell_size))
-  all_cells <- merge(all_cells, cell_size[,c("id_cell", "dir.area")], by=c("id_cell"))
+  all_cells <- merge(all_cells, cell_size[,c("id_cell", "dir.area")], by="id_cell")
   all_cells$area <- all_cells$dir.area
   all_cells$dist <- sqrt((all_cells$x - center)^2 + (all_cells$y - center)^2 )
-
-
   ids <- all_cells$id_cell
 
   rs <- vtess$dirsgs[vtess$dirsgs$ind1 %in% ids |
@@ -406,14 +448,10 @@ create_anatomy <- function(path = NULL,  # PAth
   rs2 <- rbind(rs2, data.frame(x = rs$x2, y=rs$y2, id_cell = rs$ind1))
   rs2 <- rbind(rs2, data.frame(x = rs$x2, y=rs$y2, id_cell = rs$ind2))
   rs2 <- rbind(rs2, data.frame(x = rs$x1, y=rs$y1, id_cell = rs$ind2))
-  rs2 <- rs2 %>% arrange(id_cell)
+
   rs2 <- merge(rs2, all_cells[,c("id_cell", "type", "area", "dist", "angle", "radius", "id_layer", "id_group")], by="id_cell")
 
   t6 <- proc.time()
-
-
-
-
 
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE AERENCHYMA -----
@@ -423,21 +461,15 @@ create_anatomy <- function(path = NULL,  # PAth
   angle_range_inc <- (2 * pi * proportion_aerenchyma / 100) / n_aerenchyma_files
   angle_range_inc_ini <- angle_range_inc
   safe_cortex_layer <- c(min(rs2$id_layer[rs2$type == "cortex"]))
-
   ini_cortex_area <- sum(all_cells$area[all_cells$type == "cortex" |
                                           all_cells$type == "endodermis" |
                                           all_cells$type == "exodermis" |
                                           all_cells$type == "epidermis"])
   surface_to_kill <- ini_cortex_area*proportion_aerenchyma
-
   cortex_area <- ini_cortex_area
   m_cortex_a <- mean(all_cells$area[all_cells$type == "cortex"])
-
   to_kill <- round(surface_to_kill/m_cortex_a)
-
   rs2$type <- as.character(rs2$type)
-
-
   cortex_layer <- sort(unique(rs2$id_layer[rs2$type == "cortex"]))
   `%!in%` <- compose(`!`, `%in%`)
   again <- 0
@@ -477,8 +509,6 @@ create_anatomy <- function(path = NULL,  # PAth
 
   rs2 <- rs3
 
-
-
   # angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
   # for(j in c(1:n_aerenchyma_files)){
   #   angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
@@ -488,11 +518,6 @@ create_anatomy <- function(path = NULL,  # PAth
   # }
 
   t7 <- proc.time()
-
-
-
-
-
 
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   ## TIDY DATA ------
@@ -507,13 +532,24 @@ create_anatomy <- function(path = NULL,  # PAth
     dplyr::arrange(id_cell, atan) %>%
     filter(!duplicated(atan))
 
-
-  ggplot(rs1, aes(x, y, group=id_cell, fill=type)) +
+rs1%>%
+  filter(type =="xylem")%>%
+  ggplot(aes(x, y, group=id_cell, fill=factor(id_group))) +
     geom_polygon(colour="white")+
     coord_fixed()
 
 
   # Merge the adgecent xylem cells to make metaxylem vessels
+  if (plant_type == 2) {
+     xylo <- rs1[rs1$type == "xylem",]
+
+     xylo%>%
+       filter(id_group == 1)%>%
+       ggplot()+
+       geom_point(aes(x,y, colour = factor(id_group)))
+
+  }
+
   if (plant_type == 1){
   if(verbatim) message("Merging xylem vessels")
   groups <- NULL
