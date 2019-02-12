@@ -299,9 +299,7 @@ create_anatomy <- function(path = NULL,  # PAth
             id_cell = 1,
             order = 1.5,
             type = "xylem",
-            id_group = i
-          )
-        )
+            id_group = i))
         i <-i+1
       }
 
@@ -361,7 +359,6 @@ create_anatomy <- function(path = NULL,  # PAth
     }else if(plant_type == 2){
       all_cells <- all_cells %>%
       filter(!((x-all_xylem$x[i])^2 + (y - all_xylem$y[i])^2 < (all_xylem$d[i]/1.5)^2 & type == "stele")) # find the cells inside the xylem poles and remove them
-
       }
   }
 
@@ -376,7 +373,7 @@ create_anatomy <- function(path = NULL,  # PAth
     all_cells <- all_cells[all_cells$type != "xylem",]
 
     # Make circular frontier for xylem
-    x_cir <- seq(-1,1,1/8)
+    x_cir <- seq(-0.95,0.95,0.95/4)
     y_p <- sqrt(1-x_cir^2)
     y_m <- -sqrt(1-x_cir^2)
     xyl_frontier <- NULL
@@ -401,18 +398,20 @@ create_anatomy <- function(path = NULL,  # PAth
         geom_point(aes(x,y, colour = factor(id_group)))+
         coord_fixed()
       k <- k + 1
-    all_cells <- rbind(all_cells, xyl_frontier)
     }
+    all_cells <- rbind(all_cells, xyl_frontier)
   }
 
 
   # reset the cell ids
   all_cells$id_cell <- c(1:nrow(all_cells))
+
   all_cells%>%
     ggplot()+
     geom_point(aes(x,y,colour = factor(id_group)))+
     coord_fixed()
   t5 <- proc.time()
+
 
 
 
@@ -429,6 +428,11 @@ create_anatomy <- function(path = NULL,  # PAth
   # Remove the ouside cells, to get the voronoi data straight
   all_cells <- all_cells  %>%
     filter(type != "outside")
+  test <- all_cells[all_cells$type == "xylem", ]
+  test%>%
+    ggplot()+
+    geom_point(aes(x,y, colour = factor(id_group)), size = 4, alpha = 0.2)+
+    coord_fixed()
 
   # Get the size of the cells
   cell_size <- vtess$summary
@@ -533,24 +537,13 @@ create_anatomy <- function(path = NULL,  # PAth
     filter(!duplicated(atan))
 
 rs1%>%
-  filter(type =="xylem")%>%
+  #filter(type "xylem")%>%
   ggplot(aes(x, y, group=id_cell, fill=factor(id_group))) +
     geom_polygon(colour="white")+
     coord_fixed()
 
 
-  # Merge the adgecent xylem cells to make metaxylem vessels
-  if (plant_type == 2) {
-     xylo <- rs1[rs1$type == "xylem",]
 
-     xylo%>%
-       filter(id_group == 1)%>%
-       ggplot()+
-       geom_point(aes(x,y, colour = factor(id_group)))
-
-  }
-
-  if (plant_type == 1){
   if(verbatim) message("Merging xylem vessels")
   groups <- NULL
   lost_points <- NULL
@@ -611,14 +604,13 @@ rs1%>%
     mutate(bad = ifelse(x %in% bad_points$x & y %in% bad_points$y, "yes", "no"))
   groups <- groups%>%
     mutate(bad = ifelse(x %in% bad_points$x & y %in% bad_points$y, "yes", "no"))
-  }
+
 
  rs1%>%
     filter(type == "xylem" | type == "stele")%>%
     ggplot(aes(x,y))+
     geom_polygon(aes(group = id_cell, fill = type), colour="white")
 
- if (plant_type == 1){
  groups%>%
    filter(type == "xylem" | type == "stele")%>%
    ggplot(aes(x,y))+
@@ -630,7 +622,6 @@ rs1%>%
    distinct(id_group, area, my, mx)%>%
    group_by(id_group)%>%
    summarise(area = sum(area))
- }
 
 
  ###### TRY 0.2 Convex Xylem ########
