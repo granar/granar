@@ -770,6 +770,13 @@ rs1%>%
   # outputing the inputs
   output <- data.frame(io = "input", name = params$name, type = params$type, value = params$value)
 
+  head(rs1)
+  for (i in unique(rs1$id_cell)) {
+    tmp <- rs1[rs1$id_cell == i,]
+    pol <- Polygon(tmp[, c("x","y")])
+    rs1$area[rs1$id_cell == i] <-  pol@area
+  }
+
   one_cells <- rs1%>%
     distinct(id_cell, type, id_group, area, .keep_all = TRUE)
   all_cells <- merge(all_cells, one_cells, by = "id_cell")
