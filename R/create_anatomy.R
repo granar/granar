@@ -219,7 +219,8 @@ create_anatomy <- function(path = NULL,  # PAth
       xyl <- rbind(xyl, data.frame(r = rnew,d = dnew))
       i <- i+1
     }
-    xyl <- xyl %>% arrange(r)
+    xyl <- xyl %>% arrange(r)%>%
+      filter(d > 0)
     while(xyl$d[nrow(xyl)] >= xyl$d[nrow(xyl)-1]){
       xyl$d[nrow(xyl)] <- xyl$d[nrow(xyl)] - 0.04
       xyl$r[nrow(xyl)] <- xyl$r[nrow(xyl)] - 0.02
@@ -347,6 +348,12 @@ create_anatomy <- function(path = NULL,  # PAth
       }
   }
 
+  all_cells%>%
+    ggplot()+
+    geom_point(aes(x,y,colour = factor(id_group)))+
+    coord_fixed()
+
+
   # Change the identity of stele cells to be replaced by xylem cells
   for(i in c(1:nrow(all_xylem))){
     # print(i)
@@ -420,7 +427,7 @@ create_anatomy <- function(path = NULL,  # PAth
   if(verbatim) message("Creating the geometry")
 
   # Get the voronio data
-  vtess <- deldir(all_cells$x, all_cells$y)
+  vtess <- deldir(all_cells$x, all_cells$y, digits = 8)
   if(is.null(vtess)){
     return(NULL)
     }
@@ -442,6 +449,8 @@ create_anatomy <- function(path = NULL,  # PAth
   all_cells$area <- all_cells$dir.area
   all_cells$dist <- sqrt((all_cells$x - center)^2 + (all_cells$y - center)^2 )
   ids <- all_cells$id_cell
+
+  sum(all_cells$area[all_cells$type == "xylem"])
 
   rs <- vtess$dirsgs[vtess$dirsgs$ind1 %in% ids |
                        vtess$dirsgs$ind2 %in% ids,]
@@ -618,7 +627,7 @@ rs1%>%
    geom_point()+
    geom_point(aes(mx,my))
 
- xylem_area <- groups%>% # This value seems low
+ xylem_area <- groups%>%
    distinct(id_group, area, my, mx)%>%
    group_by(id_group)%>%
    summarise(area = sum(area))
@@ -777,8 +786,11 @@ rs1%>%
     rs1$area[rs1$id_cell == i] <-  pol@area
   }
 
+
+
   one_cells <- rs1%>%
     distinct(id_cell, type, id_group, area, .keep_all = TRUE)
+  sum(one_cells$area[one_cells$type == "xylem"])
   all_cells <- merge(all_cells, one_cells, by = "id_cell")
 
 
