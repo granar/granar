@@ -1,20 +1,30 @@
 
-#' Create root anatomy
+#' @title GRANAR: Generate root anatomy in R
 #'
 #' This function creates a 2D root cross section anatomy based on global parameters. It is the core of GRANAR.
 #' @param path Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.
 #' @param parameters Table with the different parameters. Not needed if 'path' is set.  Default = NULL.
 #' @param verbatim Display textual information aboutt he simulation. Default = NULL.
 #' @keywords root anatomy
+#' @author Adrien Heymans and Guillaume Lobet
 #' @export
+#' @import tidyverse
+#' @import plyr
+#' @import deldir
+#' @import alphahull
+#' @import sp
 #' @examples
 #'
-#' create_anatomy("PATH_TO_XLM_FILE")
+#' root_cross_section <- create_anatomy(path = "PATH_TO_XLM_FILE")
 #'
 #' # OR
 #'
-#' create_anatomy(parameters = params)
+#' params <- read_param_xml(path = "PATH_TO_XLM_FILE")
+#' root_cross_section <- create_anatomy(parameters = params)
 #'
+#' # To visualize the result
+#'
+#' plot_anatomy(root_cross_section)
 
 create_anatomy <- function(path = NULL,  # PAth
                            parameters = NULL,

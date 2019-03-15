@@ -4,6 +4,7 @@
 #' @param path The path to the XML files ith the parameters
 #' @keywords granar
 #' @export
+#' @import xml2
 #' @examples
 #' read_param_xml()
 #'

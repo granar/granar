@@ -2,7 +2,9 @@
 % Please edit documentation in R/create_anatomy.R
 \name{create_anatomy}
 \alias{create_anatomy}
-\title{Create root anatomy}
+\title{GRANAR: Generate root anatomy in R
+
+This function creates a 2D root cross section anatomy based on global parameters. It is the core of GRANAR.}
 \usage{
 create_anatomy(path = NULL, parameters = NULL, verbatim = F)
 }
@@ -14,16 +16,25 @@ create_anatomy(path = NULL, parameters = NULL, verbatim = F)
 \item{verbatim}{Display textual information aboutt he simulation. Default = NULL.}
 }
 \description{
+GRANAR: Generate root anatomy in R
+
 This function creates a 2D root cross section anatomy based on global parameters. It is the core of GRANAR.
 }
 \examples{
 
-create_anatomy("PATH_TO_XLM_FILE")
+root_cross_section <- create_anatomy(path = "PATH_TO_XLM_FILE")
 
 # OR
 
-create_anatomy(parameters = params)
+params <- read_param_xml(path = "PATH_TO_XLM_FILE")
+root_cross_section <- create_anatomy(parameters = params)
 
+# To visualize the result
+
+plot_anatomy(root_cross_section)
+}
+\author{
+Adrien Heymans and Guillaume Lobet
 }
 \keyword{anatomy}
 \keyword{root}
