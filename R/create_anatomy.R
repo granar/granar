@@ -189,9 +189,9 @@ create_anatomy <- function(path = NULL,  # PAth
 
   t4 <- proc.time()
 
-  # ggplot(all_cells, aes(x, y, colour=type)) +
-  #   geom_point() +
-  #   coord_fixed()
+   ggplot(all_cells, aes(x, y, colour=type)) +
+     geom_point() +
+     coord_fixed()
 
 
   #//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,12 +282,17 @@ create_anatomy <- function(path = NULL,  # PAth
     }
 
   }else if(plant_type == 1){ # MONOCOT
+    if(n_xylem_files == 1){ # One metaxylem in the center of the stele
+     xyl <- data.frame(r = 0,
+                       d = params$value[params$type == "max_size" & params$name == "xylem"])
+    }else{
 
     #modification 05/01
     r= max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "cell_diameter" & params$name == "stele"])*1.5 -
       (params$value[params$type == "max_size" & params$name == "xylem"])/2
     xyl <- data.frame(r = r,
                       d = params$value[params$type == "max_size" & params$name == "xylem"])
+    }
     #  xyl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "max_size" & params$name == "xylem"])/2,
      #                  d = params$value[params$type == "max_size" & params$name == "xylem"])
       all_xylem <- NULL
@@ -356,11 +361,12 @@ create_anatomy <- function(path = NULL,  # PAth
            mutate(dist_phl = ifelse(type == "stele", dist_phl, 100)) %>%
            mutate(type = ifelse(dist_phl == min(dist_phl), "companion_cell", type))
       }
+
   }
 
   all_cells%>%
     ggplot()+
-    geom_point(aes(x,y,colour = factor(id_group)))+
+    geom_point(aes(x,y,colour = factor(type)))+
     coord_fixed()
 
 
@@ -448,8 +454,7 @@ create_anatomy <- function(path = NULL,  # PAth
   test <- all_cells[all_cells$type == "xylem", ]
   test%>%
     ggplot()+
-    geom_point(aes(x,y, colour = factor(id_group)), size = 4, alpha = 0.2)+
-    coord_fixed()
+    geom_point(aes(x,y, colour = type), size = 4, alpha = 0.2)
 
   # Get the size of the cells
   cell_size <- vtess$summary
