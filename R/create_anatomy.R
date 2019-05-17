@@ -1,7 +1,7 @@
 
 #' @title GRANAR: Generate root anatomy in R
 #'
-#' This function creates a 2D root cross section anatomy based on global parameters. It is the core of GRANAR.
+#' This function creates a 2D root cross section anatomy based on anatomical features translated into the parameter of the model. It is the core of GRANAR.
 #' @param path Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.
 #' @param parameters Table with the different parameters. Not needed if 'path' is set.  Default = NULL.
 #' @param verbatim Display textual information aboutt he simulation. Default = NULL.
@@ -878,6 +878,41 @@ rs1%>%
   nodes <- merge(nodes, walls, by=c("x1", "x2", "y1", "y2"))
   nodes <- nodes %>%
     arrange(sorting)
+
+  # Paraview format
+  library(data.table)
+  ep <- min(nodes$dist[nodes$type == "epidermis"])
+  walle <- nodes%>%
+    #filter(type == "epidermis")%>%
+    dplyr::group_by(x1,x2,y1,y2, id_wall)%>%
+    dplyr::summarise(n = n(),
+                     dist = mean(dist))%>%
+    ungroup()%>%
+    filter(n == 1,
+           dist > ep)%>%
+    arrange(id_wall)%>%
+    mutate(check = shift(id_wall,1),
+           checked = id_wall-check) # which wall are continuous ?
+  if(walle$id_wall[1]+1 == walle$id_wall[2]){ # if first wall continuous with the sec
+    EVE <- walle%>%
+      filter(checked != 1 | is.na(checked) )
+  }else{ # If not
+    EVE <- walle%>%
+      filter(checked != 1)
+  }
+  origine <- EVE$id_wall[1]
+  for(i in 1:(nrow(EVE)-1)){
+    k <- EVE$id_wall[i]
+    j <- EVE$check[i+1]
+    walls$id_wall[walls$id_wall %in% c(k:j)] <- k
+  }
+  walls$id_wall[walls$id_wall %in% c(EVE$id_wall[nrow(EVE)]:walle$id_wall[nrow(walle)]) ] <- EVE$id_wall[nrow(EVE)]
+
+  walls%>%
+    filter(id_wall %in% walle$id_wall)%>%
+    ggplot()+
+    geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, colour = id_wall))+
+    coord_fixed()
 
   # wrong_cell <- nodes%>%
   #   dplyr::group_by(id_cell)%>%

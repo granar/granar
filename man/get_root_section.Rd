@@ -2,15 +2,15 @@
 % Please edit documentation in R/get_root_section.R
 \name{get_root_section}
 \alias{get_root_section}
-\title{Read GRANAR xml file}
+\title{Read GRANAR file under XML}
 \usage{
 get_root_section(path)
 }
 \arguments{
-\item{path}{The path to the GRANAR XML files}
+\item{path}{The path to the GRANAR file .XML}
 }
 \description{
-This function load the GRANAR xml file.
+This function load the GRANAR file .XML.
 }
 \examples{
 root <- list()

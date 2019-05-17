@@ -1,7 +1,7 @@
-#' Read GRANAR xml file
+#' Read GRANAR file under XML
 #'
-#' This function load the GRANAR xml file.
-#' @param path The path to the GRANAR XML files
+#' This function load the GRANAR file .XML.
+#' @param path The path to the GRANAR file .XML
 #' @keywords root
 #' @export
 #' @examples
