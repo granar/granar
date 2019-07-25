@@ -34,7 +34,7 @@ plot_anatomy <- function(sim=NULL,
   if(!leg){
     pl <- pl + theme(legend.position="none")
   }
-  if(col = "segment"){
+  if(col=="segment"){
     pl <- ggplot(sim$nodes)+
       geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2))+
       theme_classic()+
