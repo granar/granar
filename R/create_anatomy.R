@@ -801,8 +801,6 @@ rs1%>%
     rs1$area[rs1$id_cell == i] <-  pol@area
   }
 
-
-
   one_cells <- rs1%>%
     distinct(id_cell, type, id_group, area, .keep_all = TRUE)
   sum(one_cells$area[one_cells$type == "xylem"])
@@ -880,39 +878,39 @@ rs1%>%
     arrange(sorting)
 
   # Paraview format
-  library(data.table)
-  ep <- min(nodes$dist[nodes$type == "epidermis"])
-  walle <- nodes%>%
-    #filter(type == "epidermis")%>%
-    dplyr::group_by(x1,x2,y1,y2, id_wall)%>%
-    dplyr::summarise(n = n(),
-                     dist = mean(dist))%>%
-    ungroup()%>%
-    filter(n == 1,
-           dist > ep)%>%
-    arrange(id_wall)%>%
-    mutate(check = shift(id_wall,1),
-           checked = id_wall-check) # which wall are continuous ?
-  if(walle$id_wall[1]+1 == walle$id_wall[2]){ # if first wall continuous with the sec
-    EVE <- walle%>%
-      filter(checked != 1 | is.na(checked) )
-  }else{ # If not
-    EVE <- walle%>%
-      filter(checked != 1)
-  }
-  origine <- EVE$id_wall[1]
-  for(i in 1:(nrow(EVE)-1)){
-    k <- EVE$id_wall[i]
-    j <- EVE$check[i+1]
-    walls$id_wall[walls$id_wall %in% c(k:j)] <- k
-  }
-  walls$id_wall[walls$id_wall %in% c(EVE$id_wall[nrow(EVE)]:walle$id_wall[nrow(walle)]) ] <- EVE$id_wall[nrow(EVE)]
-
-  walls%>%
-    filter(id_wall %in% walle$id_wall)%>%
-    ggplot()+
-    geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, colour = id_wall))+
-    coord_fixed()
+  # library(data.table)
+  # ep <- min(nodes$dist[nodes$type == "epidermis"])
+  # walle <- nodes%>%
+  #   #filter(type == "epidermis")%>%
+  #   dplyr::group_by(x1,x2,y1,y2, id_wall)%>%
+  #   dplyr::summarise(n = n(),
+  #                    dist = mean(dist))%>%
+  #   ungroup()%>%
+  #   filter(n == 1,
+  #          dist > ep)%>%
+  #   arrange(id_wall)%>%
+  #   mutate(check = shift(id_wall,1),
+  #          checked = id_wall-check) # which wall are continuous ?
+  # if(walle$id_wall[1]+1 == walle$id_wall[2]){ # if first wall continuous with the sec
+  #   EVE <- walle%>%
+  #     filter(checked != 1 | is.na(checked) )
+  # }else{ # If not
+  #   EVE <- walle%>%
+  #     filter(checked != 1)
+  # }
+  # origine <- EVE$id_wall[1]
+  # for(i in 1:(nrow(EVE)-1)){
+  #   k <- EVE$id_wall[i]
+  #   j <- EVE$check[i+1]
+  #   walls$id_wall[walls$id_wall %in% c(k:j)] <- k
+  # }
+  # walls$id_wall[walls$id_wall %in% c(EVE$id_wall[nrow(EVE)]:walle$id_wall[nrow(walle)]) ] <- EVE$id_wall[nrow(EVE)]
+  #
+  # walls%>%
+  #   filter(id_wall %in% walle$id_wall)%>%
+  #   ggplot()+
+  #   geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2, colour = id_wall))+
+  #   coord_fixed()
 
   # wrong_cell <- nodes%>%
   #   dplyr::group_by(id_cell)%>%
