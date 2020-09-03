@@ -4,14 +4,16 @@
 \alias{plot_anatomy}
 \title{Plot root anatomy}
 \usage{
-plot_anatomy(sim = NULL, col = "type", leg = T)
+plot_anatomy(sim = NULL, col = "type", leg = T, apo_bar = 2)
 }
 \arguments{
 \item{sim}{the simulation objkect, returned by 'create_anatomy.R'}
 
-\item{col}{Parameter to choose for the coloring of the cells. Accepted arguments are 'type', 'area', 'dist', 'id_cell' and 'angle'. Default = 'type'}
+\item{col}{Parameter to choose for the coloring of the cells. Accepted arguments are 'type', 'area', 'dist', 'id_cell', "segment' and 'angle'. Default = 'type'}
 
 \item{leg}{Display the legend; Default= TRUE}
+
+\item{apo_bar}{Display apolastic barrier when col = "segment". 1 endodermal casparian strip, 2 fully suberized endodermis, 3 fully suberized endodermis and an exodermal casparian strip, and 4 exodermis and endodermis are fully suberized.}
 }
 \description{
 This function plot the results of a 2D root cross section anatomy simulation

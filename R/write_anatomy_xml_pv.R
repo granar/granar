@@ -1,0 +1,137 @@
+#' Write the root anatomy as an XML file.
+#'
+#' The structure of the XL file matches the one of CellSet
+#' @param sim The simulation results
+#' @param path The path where to save the xml file
+#' @keywords root
+#' @export
+#' @examples
+#' write_anatomy_xml()
+#'
+
+write_anatomy_xml <- function(sim = NULL, path = NULL){
+
+  if(is.null(sim)) warning("No simulation found. Please input a GRANAR simulation")
+  if(is.null(path)) warning("No path found to save the XML file")
+  
+  if(length(sim$walls$x3) > 0){
+    sim$nodes <- sim$walls_nodes
+  }
+  
+  cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 3),
+                           type = c("exodermis", "epidermis", "endodermis", "passage_cell",  "cortex", "stele", "xylem", "pericycle", "companion_cell", "phloem", "inter_cellular_space", "aerenchyma", "cambium"))
+
+  xml <- '<?xml version="1.0" encoding="utf-8"?>\n'
+  xml <- paste0(xml, '<granardata>\n')
+
+  # Write the Metadata
+  xml <- paste0(xml, '\t<metadata>\n')
+  xml <- paste0(xml, '\t\t<parameters>\n')
+  xml <- paste0(xml,paste0('\t\t\t<parameter io="',sim$output$io,'" ',
+                            'name="',sim$output$name,'" ',
+                            'type="',sim$output$type,'" ',
+                            'value="',sim$output$value,'"/>\n', collapse = ""))
+  xml <- paste0(xml, '\t\t</parameters>\n')
+  xml <- paste0(xml, '\t</metadata>\n')
+
+  # Write the cells information
+  xml <- paste0(xml, '\t<cells count="',nrow(sim$cells),'">\n')
+
+  sim$nodes <- merge(sim$nodes, cellgroups, by="type")  %>%
+    mutate(id_group = id_group.y)
+
+  temp_wall <- ddply(sim$nodes, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="',
+                                                                                paste(id_wall-1, collapse='"/>\n\t\t\t\t<wall id="'),
+                                                                                '"/>\n'))
+  xml <- paste0(xml, paste0('\t\t<cell id="',temp_wall$id_cell-1, '" group="', temp_wall$id_group, '" truncated="false" >\n',
+                            '\t\t\t<walls>\n', temp_wall$walls, '\t\t\t</walls>\n',
+                            '\t\t</cell>\n', collapse=""))
+  xml <- paste0(xml, '\t</cells>\n')
+
+
+  # Write the walls information
+  xml <- paste0(xml, '\t<walls count="',nrow(sim$walls),'">\n')
+  walls <- sim$walls
+  
+  
+  
+  col_nam <- sim$walls%>%
+    select((starts_with("x") | starts_with("y")) & ends_with(as.character(c(0:9))))%>%
+    colnames()
+  N <- max(parse_number(col_nam))
+  begin <- tibble(tag1 = '\t\t<wall id="',
+                id_wall = sim$walls$id_wall-1,
+                tag2 = '" group="0" edgewall="false" >\n\t\t\t<points>\n')
+  middle <- tibble(tag_x1 = '\t\t\t\t<point x="',
+                   x1 = sim$walls$x1,
+                   tag_y1 = '" y="',
+                   y1 = sim$walls$y1,
+                   tag_end1 = '"/>\n')
+  for(k in 2:N){
+    h <- k*2-1 # odd number
+    tmp_coord <- sim$walls%>%
+      select(all_of(col_nam[c(h,h+1)]))
+    tmp_middle <- tibble(tag_x = '\t\t\t\t<point x="',
+                         x = tmp_coord[,1],
+                         tag_y = '" y="',
+                         y = tmp_coord[,2],
+                         tag_end = '"/>\n')
+    tmp_col_name <- colnames(tmp_middle)
+    colnames(tmp_middle) <- paste0(t(tmp_col_name), k)
+    middle <- cbind(middle, tmp_middle)
+  }
+  taged_walls <- cbind(begin,middle)%>%
+    mutate(tag_ending = '\t\t\t</points>\n\t\t</wall>\n')
+  xml <- paste0(xml, paste0(t(taged_walls), collapse = ""))
+  xml <- paste0(xml, '\t</walls>\n')
+  xml <- str_remove_all(xml, '\t\t\t\t<point x=\"NA\" y=\"NA\"/>\n')
+  
+  
+  # if(length(sim$walls$x3) > 0){
+  # 
+  # xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
+  #                          '\t\t\t<points>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x1,'" y="',sim$walls$y1,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x2,'" y="',sim$walls$y2,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x3,'" y="',sim$walls$y3,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x4,'" y="',sim$walls$y4,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x5,'" y="',sim$walls$y5,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x6,'" y="',sim$walls$y6,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x7,'" y="',sim$walls$y7,'"/>\n',
+  #                          '\t\t\t\t<point x="',sim$walls$x8,'" y="',sim$walls$y8,'"/>\n',
+  #                          '\t\t\t</points>\n',
+  #                          '\t\t</wall>\n', collapse = ""))
+  # }else{
+  #   xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
+  #                            '\t\t\t<points>\n',
+  #                            '\t\t\t\t<point x="',sim$walls$x1,'" y="',sim$walls$y1,'"/>\n',
+  #                            '\t\t\t\t<point x="',sim$walls$x2,'" y="',sim$walls$y2,'"/>\n',
+  #                            '\t\t\t</points>\n',
+  #                            '\t\t</wall>\n', collapse = ""))
+  # }
+
+
+  # Write the cell group informations
+  print(cellgroups)
+  xml <- paste0(xml, '\t<groups>\n')
+  xml <- paste0(xml, '\t\t<cellgroups>\n')
+  for(i in c(1:nrow(cellgroups))){
+    xml <- paste0(xml, '\t\t\t<group id="',cellgroups$id_group[i],'" name="',cellgroups$type[i],'" />\n')
+  }
+  xml <- paste0(xml, '\t\t</cellgroups>\n')
+  xml <- paste0(xml, '\t\t<wallgroups>\n')
+  xml <- paste0(xml, '\t\t\t<group id="0" name="unassigned" />\n')
+  xml <- paste0(xml, '\t\t</wallgroups>\n')
+  xml <- paste0(xml, '\t</groups>\n')
+
+  xml <- paste0(xml, '</granardata>')
+
+  if(!is.null(path)){
+    cat(xml, file = path)
+    return(TRUE)
+  }else{
+    return(xml)
+  }
+
+
+}

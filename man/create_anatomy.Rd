@@ -6,7 +6,8 @@
 
 This function creates a 2D root cross section anatomy based on anatomical features translated into the parameter of the model. It is the core of GRANAR.}
 \usage{
-create_anatomy(path = NULL, parameters = NULL, verbatim = F)
+create_anatomy(path = NULL, parameters = NULL, verbatim = F,
+  maturity_x = F)
 }
 \arguments{
 \item{path}{Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.}
@@ -14,6 +15,8 @@ create_anatomy(path = NULL, parameters = NULL, verbatim = F)
 \item{parameters}{Table with the different parameters. Not needed if 'path' is set.  Default = NULL.}
 
 \item{verbatim}{Display textual information aboutt he simulation. Default = NULL.}
+
+\item{maturity_x}{if True Metaxylem vessels are tagged as stele cells. Default = FALSE.}
 }
 \description{
 GRANAR: Generate root anatomy in R
