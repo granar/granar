@@ -1,11 +1,13 @@
 
+
+setwd("~/GitHub/granar/")
 library(tidyverse)
 library(plyr)
 library(xml2)
 library(deldir)
 library(sp)
-source("./read_param_xml.R")
-source("./io_function.R")
+source("./R/read_param_xml.R")
+source("./R/io_function.R")
 
 params <- read_param_xml("~/Thesis/2020-07 ICP_Aer/Zea_mays_2020.xml")
 # Let's try again
@@ -82,28 +84,17 @@ create_anatomy_3 <- function(path = NULL,  # path to xml file
                   atan = atan2(y-my, x - mx)) %>%
     dplyr::arrange(id_cell, atan)
 
-  # rs1%>%
-  #   ggplot()+
-  #   geom_polygon(aes(x,y, group = id_cell, fill = type ), colour = "white")+
-  #   coord_fixed()+
-  #   theme_classic()
-
   rs1$id_point <- paste0(rs1$x,";",rs1$y)
 
-  # ! The function that mess the code !
   rs1 <- smoothy_cells(rs1)
 
-  neib <- rs1$id_point[rs1$id_cell == 59]
-  nebo <- rs1$id_cell[rs1$id_cell != 59 & rs1$id_point %in% neib]
-
-  tmp_rs <- rs1
-  tmp_rs$type[tmp_rs$id_cell == 59] <- "one"
-  tmp_rs$type[tmp_rs$id_cell %in% nebo] <- "neibo"
-
-  tmp_rs%>%
-    ggplot()+
-    geom_polygon(aes(x,y, group = id_cell, fill = type ), colour = "white")+
-    coord_fixed()+
-    theme_classic()
 
 }
+
+
+
+# rs1%>%
+#   ggplot()+
+#   geom_polygon(aes(x,y, group = id_cell, fill = type ), colour = "white")+
+#   coord_fixed()+
+#   theme_classic()
