@@ -20,8 +20,6 @@ plot_anatomy <- function(sim=NULL,
 
   pl <- ggplot(sim$nodes) +
     geom_polygon(aes_string("x", "y", group="id_cell", fill=col), colour="white") +
-    geom_polygon(aes_string("x", "y", group="id_cell", fill=col, colour=col),
-                 data =sim$nodes%>%filter(type == "aerenchyma")) +
     theme_classic() +
     coord_fixed() +
     theme(axis.line=element_blank(),

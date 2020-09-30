@@ -13,11 +13,16 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
   if(is.null(sim)) warning("No simulation found. Please input a GRANAR simulation")
   if(is.null(path)) warning("No path found to save the XML file")
-  
+
+
   if(length(sim$walls$x3) > 0){
-    sim$nodes <- sim$walls_nodes
+    nodal <- sim$walls_nodes
+  }else{
+    nodal <- sim$nodes
   }
-  
+  nodal <- nodal%>%
+    select(-id_group)
+
   cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 3),
                            type = c("exodermis", "epidermis", "endodermis", "passage_cell",  "cortex", "stele", "xylem", "pericycle", "companion_cell", "phloem", "inter_cellular_space", "aerenchyma", "cambium"))
 
@@ -37,10 +42,9 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   # Write the cells information
   xml <- paste0(xml, '\t<cells count="',nrow(sim$cells),'">\n')
 
-  sim$nodes <- merge(sim$nodes, cellgroups, by="type")  %>%
-    mutate(id_group = id_group.y)
+  nodes_data <- merge(nodal, cellgroups, by="type")
 
-  temp_wall <- ddply(sim$nodes, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="',
+  temp_wall <- ddply(nodes_data, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="',
                                                                                 paste(id_wall-1, collapse='"/>\n\t\t\t\t<wall id="'),
                                                                                 '"/>\n'))
   xml <- paste0(xml, paste0('\t\t<cell id="',temp_wall$id_cell-1, '" group="', temp_wall$id_group, '" truncated="false" >\n',
@@ -50,11 +54,9 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
 
   # Write the walls information
-  xml <- paste0(xml, '\t<walls count="',nrow(sim$walls),'">\n')
+  xml <- paste0(xml, '\t<walls count="',length(unique(nodes_data$id_wall)),'">\n')
   walls <- sim$walls
-  
-  
-  
+
   col_nam <- sim$walls%>%
     select((starts_with("x") | starts_with("y")) & ends_with(as.character(c(0:9))))%>%
     colnames()
@@ -85,31 +87,6 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, paste0(t(taged_walls), collapse = ""))
   xml <- paste0(xml, '\t</walls>\n')
   xml <- str_remove_all(xml, '\t\t\t\t<point x=\"NA\" y=\"NA\"/>\n')
-  
-  
-  # if(length(sim$walls$x3) > 0){
-  # 
-  # xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
-  #                          '\t\t\t<points>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x1,'" y="',sim$walls$y1,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x2,'" y="',sim$walls$y2,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x3,'" y="',sim$walls$y3,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x4,'" y="',sim$walls$y4,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x5,'" y="',sim$walls$y5,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x6,'" y="',sim$walls$y6,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x7,'" y="',sim$walls$y7,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x8,'" y="',sim$walls$y8,'"/>\n',
-  #                          '\t\t\t</points>\n',
-  #                          '\t\t</wall>\n', collapse = ""))
-  # }else{
-  #   xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
-  #                            '\t\t\t<points>\n',
-  #                            '\t\t\t\t<point x="',sim$walls$x1,'" y="',sim$walls$y1,'"/>\n',
-  #                            '\t\t\t\t<point x="',sim$walls$x2,'" y="',sim$walls$y2,'"/>\n',
-  #                            '\t\t\t</points>\n',
-  #                            '\t\t</wall>\n', collapse = ""))
-  # }
-
 
   # Write the cell group informations
   print(cellgroups)

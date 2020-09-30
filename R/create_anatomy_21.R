@@ -26,7 +26,7 @@
 #'
 #' plot_anatomy(root_cross_section)
 
-source("~/Thesis/2020-02 GRANAR_3D/anatin_fun.R")
+#source("~/Thesis/2020-02 GRANAR_3D/anatin_fun.R")
 
 create_anatomy_2 <- function(path = NULL,  # PAth
                            parameters = NULL,
@@ -85,11 +85,11 @@ create_anatomy_2 <- function(path = NULL,  # PAth
   # INITIALIZE LAYERS -----
 
   if(verbatim) message("Creating cell layers")
-  
+
   data_list <- cell_layer(params)
   layers <- data_list$layers
   all_layers <- data_list$all_layers
-  
+
   center <- max(all_layers$radius)
 
   t3 <- proc.time()
@@ -103,11 +103,11 @@ create_anatomy_2 <- function(path = NULL,  # PAth
 
   #all_layers$name[substr(all_layers$name, 1,6) == "cortex"] <- "cortex"
   all_cells <- create_cells(all_layers, random_fact)
-  
+
   summary_cells <- ddply(all_cells, .(type), summarise, n_cells = length(angle))
 
   t4 <- proc.time()
-  
+
 
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE XYLEM VESSELS -----
@@ -120,42 +120,42 @@ create_anatomy_2 <- function(path = NULL,  # PAth
   all_cells$id_group <- 0
   # ///////////////////////////////////////////////////////////////////////////////////
 
-  
+
   if(verbatim) message("creating inter cellular spaces")
   # create inter-cellular space in cortex layer
 
   all_cells <- rondy_cortex(params, all_cells, center)
-  
-  
+
+
   all_cells %>%
     filter(id_group != 0)%>%
     ggplot()+
     geom_point(aes(x,y, colour = factor(id_group), shape = type), alpha = 0.5)+
     coord_fixed()+
     scale_shape_manual(values=1:nlevels(factor(all_cells$type)))+guides(colour = F)
-  
+
   # Create vascular vessels for dicot or monocot
   if(verbatim) message("Creating xylem and phloem vessels")
-  
+
   all_cells <- vascular(all_cells, params, layers, center)
 
   # all_cells$id_point <- paste0(round(all_cells$x,3),";",round(all_cells$y,3)) # 1 µm precision
-  # 
+  #
   # all_cells<- all_cells%>%
   #   # dplyr::group_by(id_point)%>%
   #   # dplyr::mutate(n = n())
   #   filter(!duplicated(id_point))%>%
   #   select(-id_point)
-  
+
   # all_cells$type[all_cells$n != 1]
-    
+
   all_cells %>%
     filter(id_group != 0 | type == "inter_cellular_space")%>%
     ggplot()+
     geom_point(aes(x,y, colour = factor(id_group), shape = type), alpha = 1)+
     coord_fixed()+
     scale_shape_manual(values=1:nlevels(factor(all_cells$type)))+guides(colour = F)
-  
+
   t5 <- proc.time()
 
   #//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -172,14 +172,14 @@ create_anatomy_2 <- function(path = NULL,  # PAth
   # # Remove the ouside cells, to get the voronoi data straight
   # all_cells <- all_cells  %>%
   #   filter(type != "outside")
-  
+
   if(verbatim) message("merging voronoi with cell type data")
 
   vorono_list <- cell_voro(all_cells, vtess, center)
-  
+
   all_cells <- vorono_list$all_cells
   rs2 <- vorono_list$rs2
-  
+
   t6 <- proc.time()
 
   rs1 <- rs2 %>%
@@ -192,30 +192,30 @@ create_anatomy_2 <- function(path = NULL,  # PAth
                   atan = atan2(y-my, x - mx)) %>%
     dplyr::arrange(id_cell, atan) #%>%
     #filter(!duplicated(atan))# %>% select(-id_point)
-  
+
   # if(verbatim) message("endodermis structure")
   # endodermis rectangular shapes
-  
+
   if(verbatim) message("Merging xylem vessels and cortex cells")
   rs1 <- smoothy_cells(rs1)
-  
+
   rs1 <- rs1%>%
     dplyr::group_by(id_cell)%>%
     dplyr::filter(!duplicated(id_point))
-  
+
   voiz <- rs1%>%
     mutate(id_point = paste0(round(x,3),";",round(y,3)))%>%
     dplyr::group_by(id_point)%>%
     dplyr::summarise(n = n())
-  
+
   # message(paste0("a few possible mistake are possible around point", voiz$id_point[voiz$n < 2]))
-  
+
   rs1 <- rs1[rs1$id_point %!in% voiz$id_point[voiz$n < 3] | rs1$type == "epidermis", ]
-  
+
   if(verbatim) message("Merging inter cellular space")
   rs1 <- fuzze_inter(rs1)
   # rs1 <- rs1[rs1$type != "inter_cellular_space", ]
-  
+
   if(verbatim){
   print(rs1%>%
           mutate(x = round(x,3),
@@ -224,27 +224,27 @@ create_anatomy_2 <- function(path = NULL,  # PAth
           geom_polygon(colour="white")+
           coord_fixed())
   }
-  
+
   t7 <- proc.time()
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   # CREATE AERENCHYMA -----
   if(verbatim){message("Killing cells to make aerenchyma")}
-  
-  ini_cortex_area <- sum(all_cells$area[all_cells$type %in% c( "cortex" ,"exodermis" , # ,"endodermis" 
+
+  ini_cortex_area <- sum(all_cells$area[all_cells$type %in% c( "cortex" ,"exodermis" , # ,"endodermis"
                                                                "epidermis", "inter_cellular_space")])
   saved_rs1 <- rs1
   rs1 <- saved_rs1
   if(proportion_aerenchyma > 0){
-    
+
     for (i in unique(rs1$id_cell)) {
       tmp <- rs1[rs1$id_cell == i,]
       tmp <- tmp[!is.na(tmp$x), ]
       pol <- Polygon(tmp[, c("x","y")])
       rs1$area[rs1$id_cell == i] <-  pol@area
     }
-    # make aerenchyma 
+    # make aerenchyma
     rs1 <- aerenchyma(params, rs1)
-    
+
     if(verbatim){
       print(rs1%>%
               mutate(x = round(x,3),
@@ -253,41 +253,41 @@ create_anatomy_2 <- function(path = NULL,  # PAth
               geom_polygon(colour="white")+
               coord_fixed())
     }
-    
+
     if(verbatim) message("simplify remaining cell walls between lacuna")
-    # simplify septa 
+    # simplify septa
     rs1 <- septa(rs1)
     # id_aerenchyma <- unique(septum$id_cell)
   }else{cortex_area <- ini_cortex_area}
-  
-  
+
+
   # hairy epidermis # add-on 27-02-2020
  #-----------------------------------------
-  
+
   if(length(params$value[params$name == "hair"] )!= 0){
     if(params$value[params$name == "hair" & params$type == "n_files"] > 0 ){
     rs1 <- root_hair(rs1, params, center)
     }
   }
-  
+
   # if(proportion_aerenchyma > 0){
   #   rs1$aer <- ifelse(rs1$id_cell %in% id_aerenchyma, "aer", "other")
   #   rs1$type[rs1$aer == "aer"] <- "aerenchyma"
   # }
-  
+
   t8 <- proc.time()
-  
-  
+
+
   rs1 <- rs1[!is.na(rs1$x),]
   #//////////////////////////////////////////////////////////////////////////////////////////////////
   ## TIDY DATA ------
-  
+
   if(verbatim) message("Tidying data before export")
 
   tt <- proc.time()
   # outputing the inputs
   output <- data.frame(io = "input", name = params$name, type = params$type, value = params$value)
-  
+
   rs1$x <- round(rs1$x,3)
   rs1$y <- round(rs1$y,3)
   for (i in unique(rs1$id_cell)) {
@@ -303,20 +303,20 @@ create_anatomy_2 <- function(path = NULL,  # PAth
     }
     }
   }
-  
+
   # Reset the ids of the cells to be continuous
   ids <- data.frame(id_cell = unique(rs1$id_cell))
   ids$new <- c(1:nrow(ids))
   rs1 <- merge(rs1, ids, by="id_cell")
   rs1$id_cell <- rs1$new
-  
+
   if(proportion_aerenchyma > 0){
     id_aerenchyma <- unique(rs1$id_cell[rs1$aer == "aer"])
   }else{id_aerenchyma <- NA}
-  
+
   all_cells <- merge(all_cells, ids, by="id_cell")
   all_cells$id_cell <- all_cells$new
-  
+
   one_cells <- rs1%>%
     filter(!duplicated(id_cell))# , !duplicated(type), !duplicated(id_group), !duplicated(area)
   sum(one_cells$area[one_cells$type == "xylem"])
@@ -339,13 +339,13 @@ create_anatomy_2 <- function(path = NULL,  # PAth
 
   # finaly we add the outputs for the whole section
   output <-rbind(output, data.frame(io="output", name="all", type="n_cells", value = nrow(all_cells)))
-  
-  output <-rbind(output, data.frame(io="output", name="stelar", type="layer_area", 
+
+  output <-rbind(output, data.frame(io="output", name="stelar", type="layer_area",
                                     value = sum(all_cells$area.y[all_cells$order < 4])))
   TCA <- sum(all_cells$area.y[all_cells$order > 3])
-  output <-rbind(output, data.frame(io="output", name="cortex_to_epidermis", type="layer_area", 
+  output <-rbind(output, data.frame(io="output", name="cortex_to_epidermis", type="layer_area",
                                     value = TCA))
-  
+
   output <-rbind(output, data.frame(io="output", name="all", type="layer_area", value = sum(all_cells$area.y)))
   # output <-rbind(output, data.frame(io="output", name="aerenchyma", type="layer_area", value = (ini_cortex_area - cortex_area)))
   # output <-rbind(output, data.frame(io="output", name="aerenchyma", type="proportion", value = (ini_cortex_area - cortex_area)/ini_cortex_area))
@@ -356,15 +356,15 @@ create_anatomy_2 <- function(path = NULL,  # PAth
   rs1$sorting <- c(1:nrow(rs1))
 
   nodes <- vertex(rs1)
-  
+
   # In the MECHA python script, to have unmature metaxylem vessels
   # Metaxylem elements are turned into stele cell type
   if(maturity_x){
     tmp_m <- mean(nodes$area[nodes$type == "cortex"])
     nodes$type[nodes$type == "xylem" & nodes$area > tmp_m ] <- "stele"
   }
-  
-  
+
+
   if(paraview){
     walls <- pv_ready(rs1)
     if(length(which(walls$keep_going == "...")) > 0){
@@ -378,14 +378,14 @@ create_anatomy_2 <- function(path = NULL,  # PAth
     walls <- merge(walls, wally, by= wall_length)
     walls <- walls %>%
       arrange(sorting)
-    
+
   }else{
     wally <- nodes[!duplicated(nodes[,c('x1', 'x2', 'y1', 'y2')]),] %>%
       dplyr::select(c(x1, x2, y1, y2))
-    
+
     wally$id_wall <- c(1:nrow(wally))
     walls <- wally
-    
+
     nodes <- merge(nodes, walls, by=c("x1", "x2", "y1", "y2"))
     nodes <- nodes %>%
       arrange(sorting)
@@ -428,20 +428,20 @@ create_anatomy_2 <- function(path = NULL,  # PAth
 }
 
 write_anatomy_xml <- function(sim = NULL, path = NULL){
-  
+
   if(is.null(sim)) warning("No simulation found. Please input a GRANAR simulation")
   if(is.null(path)) warning("No path found to save the XML file")
-  
+
   if(length(sim$walls$x3) > 0){
     sim$nodes <- sim$walls_nodes
   }
-  
+
   cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 3),
                            type = c("exodermis", "epidermis", "endodermis", "passage_cell",  "cortex", "stele", "xylem", "pericycle", "companion_cell", "phloem", "inter_cellular_space", "aerenchyma", "cambium"))
-  
+
   xml <- '<?xml version="1.0" encoding="utf-8"?>\n'
   xml <- paste0(xml, '<granardata>\n')
-  
+
   # Write the Metadata
   xml <- paste0(xml, '\t<metadata>\n')
   xml <- paste0(xml, '\t\t<parameters>\n')
@@ -451,13 +451,13 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
                            'value="',sim$output$value,'"/>\n', collapse = ""))
   xml <- paste0(xml, '\t\t</parameters>\n')
   xml <- paste0(xml, '\t</metadata>\n')
-  
+
   # Write the cells information
   xml <- paste0(xml, '\t<cells count="',nrow(sim$cells),'">\n')
-  
+
   sim$nodes <- merge(sim$nodes, cellgroups, by="type")  %>%
     mutate(id_group = id_group.y)
-  
+
   temp_wall <- ddply(sim$nodes, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="',
                                                                                 paste(id_wall-1, collapse='"/>\n\t\t\t\t<wall id="'),
                                                                                 '"/>\n'))
@@ -465,14 +465,14 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
                             '\t\t\t<walls>\n', temp_wall$walls, '\t\t\t</walls>\n',
                             '\t\t</cell>\n', collapse=""))
   xml <- paste0(xml, '\t</cells>\n')
-  
-  
+
+
   # Write the walls information
   xml <- paste0(xml, '\t<walls count="',nrow(sim$walls),'">\n')
   walls <- sim$walls
-  
-  
-  
+
+
+
   col_nam <- sim$walls%>%
     select((starts_with("x") | starts_with("y")) & ends_with(as.character(c(0:9))))%>%
     colnames()
@@ -503,33 +503,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, paste0(t(taged_walls), collapse = ""))
   xml <- paste0(xml, '\t</walls>\n')
   xml <- str_remove_all(xml, '\t\t\t\t<point x=\"NA\" y=\"NA\"/>\n')
-  
-  
-  # if(length(sim$walls$x3) > 0){
-  # 
-  # xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
-  #                          '\t\t\t<points>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x1,'" y="',sim$walls$y1,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x2,'" y="',sim$walls$y2,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x3,'" y="',sim$walls$y3,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x4,'" y="',sim$walls$y4,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x5,'" y="',sim$walls$y5,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x6,'" y="',sim$walls$y6,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x7,'" y="',sim$walls$y7,'"/>\n',
-  #                          '\t\t\t\t<point x="',sim$walls$x8,'" y="',sim$walls$y8,'"/>\n',
-  #                          '\t\t\t</points>\n',
-  #                          '\t\t</wall>\n', collapse = ""))
-  # }else{
-  #   xml <- paste0(xml,paste0('\t\t<wall id="',sim$walls$id_wall-1,'" group="0" edgewall="false" >\n',
-  #                            '\t\t\t<points>\n',
-  #                            '\t\t\t\t<point x="',sim$walls$x1,'" y="',sim$walls$y1,'"/>\n',
-  #                            '\t\t\t\t<point x="',sim$walls$x2,'" y="',sim$walls$y2,'"/>\n',
-  #                            '\t\t\t</points>\n',
-  #                            '\t\t</wall>\n', collapse = ""))
-  # }
-  
-  
-  # Write the cell group informations
+
   print(cellgroups)
   xml <- paste0(xml, '\t<groups>\n')
   xml <- paste0(xml, '\t\t<cellgroups>\n')
@@ -541,15 +515,14 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, '\t\t\t<group id="0" name="unassigned" />\n')
   xml <- paste0(xml, '\t\t</wallgroups>\n')
   xml <- paste0(xml, '\t</groups>\n')
-  
+
   xml <- paste0(xml, '</granardata>')
-  
+
   if(!is.null(path)){
     cat(xml, file = path)
     return(TRUE)
   }else{
     return(xml)
   }
-  
-  
+
 }

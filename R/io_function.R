@@ -112,6 +112,214 @@ create_cells <- function(all_layers, random_fact){
   return(all_cells)
 }
 
+make_pith <- function(all_cells, params, center){
+  if(params$value[params$name == "pith"][1] > 0){
+    pith_size <- params$value[params$name == "pith" & params$type == "layer_diameter"]/2
+    pcell <- params$value[params$name == "pith" & params$type == "cell_diameter"]
+  }else{pith_size <- 0}
+
+  if(pith_size > 0){
+
+
+    xylem <- all_cells%>%
+      filter(type == "xylem")
+
+    xylem <- xylem%>%
+      dplyr::group_by(id_group)%>%
+      dplyr::mutate(mx = mean(x),
+                    my = mean(y),
+                    euc = sqrt((mx-center)^2+(my - center)^2))
+    inner <- unique(xylem$id_group[xylem$euc < pith_size])
+    all_cells <- all_cells[all_cells$type != "xylem" | all_cells$id_group %!in% inner,]
+
+
+    n_pith_lay <- round(1+(pith_size-pcell/2)/pcell)
+    pith_layer <- data.frame(name="stele",
+                             n_layers=rep(n_pith_lay, n_pith_lay),
+                             cell_diameter=pcell,
+                             order = 0.5)
+
+    pith_layer <- layer_info(pith_layer)
+    new_cells <- create_cells(all_layers = pith_layer, random_fact = 0.001)
+    new_cells%>%
+      ggplot()+geom_point(aes(x,y))+
+      coord_fixed()
+    new_center <- mean(new_cells$x[new_cells$angle == 0], new_cells$y[new_cells$angle == 0])
+
+    new_cells$x <- new_cells$x-new_center+center
+    new_cells$y <- new_cells$y-new_center+center
+    new_cells$id_group <- 0
+
+    all_cells <- all_cells[sqrt((all_cells$x-center)^2+(all_cells$y-center)^2) > pith_size,]
+    all_cells <- rbind(new_cells, all_cells)
+    all_cells$id_cell <- 1:nrow(all_cells)
+
+    all_cells%>%
+      # filter(id_group %!in% inner)%>%
+      ggplot()+
+      geom_point(aes(x,y, colour = type))+
+      # geom_point(aes(x,y), colour = "red", alpha = 0.2, data =     xylem%>%
+      #              filter(id_group %in% inner))+
+      # geom_point(aes(x,y), colour = "green", data = new_cells)+
+      coord_fixed()
+  }
+
+  return(all_cells)
+}
+
+rondy_cortex <- function(params, all_cells, center){
+  random_fact <- params$value[params$name == "randomness"] / 10
+  cor_d <- params$value[params$name == "cortex" & params$type == "cell_diameter"]
+
+  # calibration parameter
+  # to_adjust1 <- params$value[params$name == "coefficient" & params$type == "icp_size"]
+  # to_adjust2 <- params$value[params$name == "coefficient" & params$type == "icp_ratio"]
+
+  all_cortex <- all_cells[all_cells$type %in% c("cortex","endodermis", "exodermis"),]
+
+  icp_size <- params$value[params$name == "inter_cellular_space" & params$type == "size"]
+  if(length(icp_size)> 0){
+    scaling <- 1-(icp_size/cor_d)
+    if(scaling >= 0.99){
+      scaling = 0.99
+    }
+  }else{scaling <- 0.95}
+
+
+  if(length(all_cells$id_group[all_cells$type == "xylem"]) > 0){
+    k_max_xylem <- max(all_cells$id_group[all_cells$type == "xylem"])
+  }else{k_max_xylem <- 0}
+
+  ctess <- deldir(all_cortex$x, all_cortex$y, digits = 8)
+  idc <- unique(all_cortex$id_cell)
+  idc <- 1:length(idc)
+  rc <- ctess$dirsgs[ctess$dirsgs$ind1 %in% idc |
+                       ctess$dirsgs$ind2 %in% idc,]
+  rc <- rc%>% arrange(ind1)
+  rc2 <- data.frame(x = rc$x1, y=rc$y1, id_cell = rc$ind1)
+  rc2 <- rbind(rc2, data.frame(x = rc$x2, y=rc$y2, id_cell = rc$ind1))
+  rc2 <- rbind(rc2, data.frame(x = rc$x2, y=rc$y2, id_cell = rc$ind2))
+  rc2 <- rbind(rc2, data.frame(x = rc$x1, y=rc$y1, id_cell = rc$ind2))
+
+  inner <- min(all_cortex$radius[all_cortex$type %in% c("cortex")]) # [all_cortex$type %in% c("endodermis", "cortex")]
+  outer <- max(all_cortex$radius[all_cortex$type %in% c("cortex")]) # no intercellular space between exo cortex and cortex
+
+  rc2 <- rc2%>%mutate(euc = sqrt((x-center)^2+(y-center)^2))%>%
+    dplyr::group_by(id_cell)%>%
+    dplyr::mutate(mx = mean(x),
+                  my = mean(y),
+                  atan = atan2(y-my, x - mx))%>%
+    dplyr::arrange(id_cell, atan)
+
+  all_cortex$id_cell <- 1:nrow(all_cortex)
+  rc1 <- merge(rc2, all_cortex[,c("id_cell", "type", "radius", "id_layer")], by="id_cell")
+
+  rcin <- rc2%>%
+    filter(euc > inner,
+           euc < outer)%>%
+    mutate(ID = paste0(x,y))%>%
+    filter(!duplicated(ID))
+
+  rc1%>%
+    ggplot()+
+    geom_polygon(aes(x,y, group = id_cell, fill = type), colour = "white")+
+    #geom_point(aes(x,y,colour = factor(id_cell)), size = 2, alpha = 0.3, data = all_cortex)+
+    # geom_point(aes(x,y, colour = factor(id_group)), data = cor_frontier)+
+    coord_fixed()+
+    guides(colour = F)
+
+  all_inter <- data.frame(angle = ifelse(rcin$y-center >= 0, acos((rcin$x - center)/rcin$euc),
+                                         2*pi-acos((rcin$x - center)/rcin$euc)),
+                          radius = rcin$euc,
+                          x = rcin$x, y = rcin$y,
+                          id_layer = all_cortex$id_layer[1]+0.5,
+                          id_cell = 1:nrow(rcin),
+                          type = "inter_cellular_space",
+                          order = params$value[params$name == "cortex" & params$type == "order"]+0.5,
+                          id_group = 0 # if too close, they should be merge but not now
+  )
+  if(length(params$value[params$name =="inter_cellular_space"]) > 0){
+    coef_icp <- (10 * params$value[params$name =="inter_cellular_space" & params$type == "ratio"]) # here to modulate icp proportion coeficient
+    if(coef_icp > 1){coef_icp = 1}
+    inter_cellular_proportion <- coef_icp*nrow(all_inter)
+  }else{
+    inter_cellular_proportion <- 0.5*nrow(all_inter)
+  }
+  if(inter_cellular_proportion == 0){
+    all_inter <- NULL
+  }else{
+    to_keep <- sample(1:nrow(all_inter), round(inter_cellular_proportion), replace=F)
+    all_inter <- all_inter[all_inter$id_cell %in% to_keep,]
+    all_inter$id_point <- paste0(all_inter$x,";",all_inter$y)
+    all_inter <- all_inter%>%
+      filter(!duplicated(id_point))%>%
+      select(-id_point)
+    all_inter%>%
+      ggplot()+
+      geom_point(aes(x,y))+
+      coord_fixed()
+  }
+
+  nodes <- vertex(rc1%>%
+                    filter(type == "cortex"))
+  nodes <- nodes %>%
+    filter(wall_length > 0)%>%
+    mutate(m = (y2-y1)/(x2-x1),
+           k = y1-m*x1,
+           r_dist = abs(k+m*mx-my)/sqrt(1+m^2)) # distance between a point (mx,my) to a segment defined by to point (x1,y1; x2,y2)
+
+  nodes%>%
+    ggplot()+
+    geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2))+
+    coord_fixed()
+
+  cor <- nodes%>%
+    filter(wall_length > 0)%>%
+    dplyr::group_by(id_cell)%>%
+    dplyr::mutate(radius = min(r_dist))%>%
+    filter(!duplicated(id_cell))
+
+  cor$radius[cor$id_layer %in% c(inner, outer)] <- cor$radius[cor$id_layer %in% c(inner, outer)]*0.45
+
+  cor$id_group = 1:nrow(cor)
+
+  circus <- seq(-0.95,0.95,0.95/4)
+  cir <- data.frame(x_cir = rep(circus,2*nrow(cor)))%>%
+    mutate(y_cir = rep(c(sqrt(1-circus^2),-sqrt(1-circus^2)),nrow(cor)),
+           # mx = rep(cor$mx,2*length(circus)),
+           # my = rep(cor$my,2*length(circus)),
+           id_group = sort(rep(1:nrow(cor),2*length(circus))))
+
+  cor_frontier <- merge(cir, cor[,c("id_group", "radius", "mx", "my", "id_layer")], by = "id_group")%>%
+    transmute(radius = radius,
+              x = x_cir*radius*scaling+mx,
+              y = y_cir*radius*scaling+my,
+              euc = sqrt((mx-center)^2+(my-center)^2),
+              angle = ifelse(my-center > 0,acos((mx - center)/euc),
+                             2*pi-acos((mx - center)/euc)) ,
+              id_layer = id_layer,
+              id_cell = 1,
+              type = "cortex",
+              order = params$value[params$name == "cortex" & params$type == "order"],
+              id_group = id_group
+    )%>%
+    select(-euc)
+
+  cor_frontier%>%
+    ggplot()+
+    geom_point(aes(x,y, colour = factor(id_group)))+
+    coord_fixed()+
+    guides(colour = F)
+
+  all_cells <- rbind(all_cells[all_cells$type != "cortex",], cor_frontier)
+  all_cells$id_group[all_cells$type == "cortex"] <- all_cells$id_group[all_cells$type == "cortex" & all_cells$id_group != 0] + k_max_xylem
+  all_cells <- rbind(all_cells, all_inter)
+
+  # reset the cell ids
+  all_cells$id_cell <- c(1:nrow(all_cells))
+  return(all_cells)
+}
+
 vascular <- function(all_cells, params, layers, center){
 
 
@@ -478,23 +686,74 @@ cell_voro <- function(all_cells, vtess, center){
 
 }
 
-smoothy_cells <- function(rs1){
+vertex <- function(rs1){
+  nodes <- rs1 %>%
+    mutate(id_point= paste0(rs1$x,";",rs1$y))%>%
+    group_by(id_cell) %>%
+    filter(!duplicated(id_point))%>%
+    dplyr::mutate(xx = c(x[-1],x[1])) %>%
+    dplyr::mutate(yy = c(y[-1],y[1]))%>%
+    select(-id_point)
 
+  nodes <- nodes %>%
+    ungroup() %>%
+    mutate(vertical = ifelse(x == xx, "true", "false")) %>%
+    mutate(x1 = ifelse(x > xx, x, xx)) %>%
+    mutate(x2 = ifelse(x > xx, xx, x)) %>%
+    mutate(y1 = ifelse(x > xx, y, yy)) %>%
+    mutate(y2 = ifelse(x > xx, yy, y)) %>%
+    # Bug fix when wall is perfectly vertical
+    mutate(y1 = ifelse(x == xx,
+                       ifelse(y > yy, yy, y), y1)) %>%
+    mutate(y2 = ifelse(x == xx,
+                       ifelse(y > yy, y, yy), y2)) %>%
+    mutate(wall_length = sqrt((x2-x1)^2 + (y2-y1)^2)) %>%
+    mutate(wall_length2 = sqrt((xx-x)^2 + (yy-y)^2),
+           slope = (y2-y1)/(x2-x1),
+           intercept = y1 - slope*x1)
+  return(nodes)
+}
+
+smoothy_cells <- function(rs1){
+  # saved_rs <- rs1
+
+  # rs1 <- saved_rs
   for(i in c(1:max(rs1$id_group))){
     temp <- rs1[rs1$id_group == i,]
     rs1 <- rs1[rs1$id_group != i,]
     if(nrow(temp)> 0){
       temp <- concavety(temp)
-      rs1 <- rbind(rs1,temp)
+      rs1 <- rbind(rs1,temp)%>%as.tibble()
     }
+
   }
+
+  rs1 <- rs1%>%
+    dplyr::group_by(id_cell)%>%
+    dplyr::filter(!duplicated(id_point))%>%
+    ungroup()
+  voiz <- rs1%>%
+    dplyr::group_by(id_point)%>%
+    dplyr::summarise(n = n())%>%
+    ungroup()
+
+  rs1 <- rs1[rs1$id_point %!in% voiz$id_point[voiz$n < 3] | rs1$type == "epidermis", ]
 
   return(rs1)
 }
 
 concavety <- function(data){
 
-  nodes <- data
+  # data %>%
+  #   ggplot()+
+  #   geom_polygon(aes(x,y, group = id_cell, fill = id_cell), alpha = 0.2,colour = "white")+
+  #   geom_point(aes(x,y), data = rock_roll)+
+  #   #geom_polygon(aes(x,y),fill = "blue",alpha = 0.5, colour = "white", data = rock_roll)+
+  #   coord_fixed()
+  #  data <- saved_cells
+
+  nodes <- data%>%
+    mutate(id_point = paste0(x,";", y))
   id_list <- NULL
   rock_roll <- NULL
   while(length(id_list) != length(unique(data$id_cell))){
@@ -638,7 +897,423 @@ concavety <- function(data){
   }
 
 
-  return(rock_roll%>%select(colnames(data)))
+  return(rock_roll%>%select(colnames(data))%>%ungroup())
 
 
+}
+
+fuzze_inter <- function(rs1){
+  # saved_rs <- rs1
+  space <- rs1[rs1$type == "inter_cellular_space",]
+  if(nrow(space)> 0){
+
+    double <- space%>%
+      dplyr::group_by(id_point)%>%
+      dplyr::summarise(n = n())%>%
+      filter(n > 1)
+    to_correct <- unique(space$id_cell[space$id_point %in% double$id_point])
+
+    if(nrow(double) > 0){
+      done <- NULL
+      itm <- 0
+      for (btw in to_correct) {
+        comu1 <- space$id_point[space$id_cell == btw & space$id_point %in% double$id_point]
+        nei <- unique(space$id_cell[space$id_cell != btw & space$id_point %in% comu1])
+        bou <- c(btw, nei)
+        ke <- length(bou)
+        te <- 0
+        while(ke > te){
+          te <- length(bou)
+          comu1 <- space$id_point[space$id_cell %in% bou & space$id_point %in% double$id_point]
+          nei <- unique(space$id_cell[space$id_cell %!in% bou & space$id_point %in% comu1])
+          bou <- unique(c(bou, nei))
+          ke <- length(bou)
+        }
+        itm <- bou
+
+        if(itm[1] %in% done){next()}
+        # print(bou)
+        tmp_cell <- space[space$id_cell %in% itm, ]
+        for (i in unique(tmp_cell$id_cell)) {
+          tmp <- tmp_cell[tmp_cell$id_cell == i,]
+          tmp <- tmp[!is.na(tmp$x), ]
+          pol <- Polygon(tmp[, c("x","y")])
+          tmp_cell$area[tmp_cell$id_cell == i] <-  pol@area
+        }
+
+        tmp_cell <- tmp_cell[tmp_cell$area > 0, ]
+        if(nrow(tmp_cell) > 0){
+          tmp_cell <- tmp_cell%>%
+            dplyr::group_by(id_cell)%>%
+            dplyr::filter(!duplicated(id_point))
+
+            rs1 <- rs1[rs1$id_cell %!in% itm,]
+            tmp_cell <- concavety(tmp_cell)
+            rs1 <- rbind(rs1,tmp_cell)
+          }else{
+            rs1 <- rs1[rs1$id_cell %!in% itm,]
+          }
+        done <- c(done, itm)
+      }
+
+    }
+  }
+
+  return(rs1)
+}
+
+aerenchyma <- function(params, rs1){
+
+  # saved_rs <- rs1
+  # rs1 <- saved_rs
+
+  aer_type <- params$value[params$name == "aerenchyma" & params$type == "type"]
+  if(length(aer_type)== 0){
+    aer_type <- params$value[params$name == "planttype" & params$type == "param"]
+  }
+  n_aerenchyma_files <- params$value[params$name == "aerenchyma" & params$type == "n_files"]
+  proportion_aerenchyma <- params$value[params$name == "aerenchyma" & params$type == "proportion"]
+
+  angle_inc <- (2 * pi) / n_aerenchyma_files
+  safe_cortex_layer <- c(min(rs1$id_layer[rs1$type == "cortex"]))
+  last_cortex_layer <- c(max(rs1$id_layer[rs1$type == "cortex"]))
+  area_all <- rs1%>%
+    filter(type %in% c("cortex", "inter_cellular_space", "exodermis", "epidermis"))%>%
+    dplyr::group_by(id_cell)%>%
+    dplyr::summarise(area = mean(area))
+  ini_cortex_area <- sum(area_all$area)
+  surface_to_kill <- ini_cortex_area*proportion_aerenchyma
+  stk_zone = surface_to_kill/n_aerenchyma_files
+  # (2 * pi * proportion_aerenchyma / 30) / n_aerenchyma_files
+  if (aer_type == 1){
+    small_r <- mean(rs1$dist[rs1$id_layer == safe_cortex_layer])+0.5*mean(rs1$radius[rs1$id_layer == safe_cortex_layer])
+    big_R <- mean(rs1$dist[rs1$id_layer == last_cortex_layer])+0.5*mean(rs1$radius[rs1$id_layer == last_cortex_layer])
+    angle_range_inc <- stk_zone/(big_R^2-small_r^2)
+
+  }
+  if(aer_type == 2){
+    angle_range_inc <- (2 * pi * proportion_aerenchyma / 100) / n_aerenchyma_files
+  }
+
+  angle_range_inc_ini <- angle_range_inc
+  cortex_area <- ini_cortex_area
+  angle <- runif(1, 0.6, 1) * pi/n_aerenchyma_files
+  angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
+  id_group_max <- max(rs1$id_group)
+
+
+  for(j in c(1:n_aerenchyma_files)){
+    # saved_rs1 <- rs1
+    possi <- rs1[rs1$id_layer %!in% safe_cortex_layer & rs1$type %in% c("cortex", "inter_cellular_space"),]
+    gotogo <- T
+    n_try <- 0
+    while(gotogo){
+      angle_range <- c(angle - angle_range_inc, angle + angle_range_inc)
+      ma_cell <- rs1 %>%
+        filter(id_layer %!in% safe_cortex_layer ,
+               type == "cortex" ,
+               angle > angle_range[1] ,
+               angle < angle_range[2])
+      are <- sum_area(ma_cell)
+      if(are > stk_zone){
+        angle_range_inc <- angle_range_inc*0.9
+        n_try <- n_try + 1
+        if(n_try > 100){
+          gotogo <- F
+        }
+        next()
+      }
+      if(nrow(ma_cell) > 0){
+        while(are <= stk_zone ){
+          are <- sum_area(ma_cell)
+          pointy <- unique(ma_cell$id_point)
+          done <- unique(ma_cell$id_cell) # id from potential cell to be named aer
+          nei <- unique(possi$id_cell[possi$id_cell %!in% done & possi$id_point %in% pointy]) # neigh cells and inter_cell
+          icp <- unique(possi$id_cell[possi$id_cell %in% nei & possi$type == "inter_cellular_space"]) # neigh inter_cell
+          pre <- unique(possi$id_cell[possi$id_cell %in% c(done,icp)]) # merge potential and inter_cell
+
+          done <- c(done, nei) # full potential
+          ma_cell <- possi[possi$id_cell %in% done,]
+          are <- sum_area(ma_cell)
+
+          # pl <- ggplot()+
+          #   geom_polygon(aes(x,y,group = id_cell, fill = id_cell), colour = "white", alpha = 0.8,data = ma_cell)+
+          #   geom_polygon(aes(x,y,group = id_cell, fill = id_cell), colour = "white", alpha = 0.1,data = rs1)+
+          #   geom_polygon(aes(x,y,group = id_cell), fill = "red",colour = "white", alpha = 0.1,data = rs1%>%
+          #                  filter(id_layer == safe_cortex_layer))+
+          #   coord_fixed()
+          # print(pl)
+
+          n_try <- n_try + 1
+          if(n_try > 100){
+            are = stk_zone
+          }
+        }
+        # once it overflow the threshold limit
+        ma_cell <- possi[possi$id_cell %in% pre,] # this default potential cell and inter_cell are selected
+        are_b <- sum_area(ma_cell)
+        # adjust to include the right amount of cells as aerenchyma
+        if(are_b > stk_zone){to_be_added <- NULL}else{
+
+          next_area <- possi[possi$id_cell %in% done & possi$id_cell %!in% pre,]
+          alm <- next_area%>%
+            dplyr::group_by(id_cell)%>%
+            dplyr::summarise(area = mean(area))%>%
+            mutate(sarea = cumsum(area),
+                   near = abs(sarea+are_b-stk_zone))
+          jk <- which(alm$near == min(alm$near))
+
+          to_be_added <- alm$id_cell[1:jk]
+          ma_cell <- possi[possi$id_cell %in% c(pre,to_be_added),]
+          pointy <- unique(ma_cell$id_point)
+          done <- unique(ma_cell$id_cell) # id from potential cell to be named aer
+          nei <- unique(possi$id_cell[possi$id_cell %!in% done & possi$id_point %in% pointy]) # neigh cells and inter_cell
+          icp <- unique(possi$id_cell[possi$id_cell %in% nei & possi$type == "inter_cellular_space"])
+          pre <- unique(possi$id_cell[possi$id_cell %in% c(done,icp)])
+          ma_cell <- possi[possi$id_cell %in% pre,]
+        }
+
+        rs1 <- rs1[rs1$id_cell %!in% pre,]
+        gotogo <- F # we are done for this part
+        #ma_cell = saved_ma_cell <- ma_cell
+        aer <- concavety(ma_cell)
+        aer$type <- as.character("aerenchyma")
+        aer$id_group <- j+id_group_max
+
+
+        # print(unique(rs1$id_cell[rs1$id_cell %in% pre]))
+        # print(str(aer))
+        # print(str(rs1))
+        rs1 <- rbind(rs1, aer)
+
+        # print(aer%>%
+        #   ggplot(aes(x,y))+
+        #   geom_polygon(aes(x,y,group = id_cell, fill = type), colour = "white", alpha = 0.8,data = rs1)+
+        #   geom_polygon(colour = "white", fill = "red")+
+        #   coord_fixed())
+        #
+      }else{
+        angle_range_inc <- angle_range_inc*1.1
+        n_try <- n_try + 1
+        if(n_try > 100){
+          gotogo <- F
+        }
+      }
+
+    }
+    angle <- angle + angle_inc
+    message(paste0(j,"/",n_aerenchyma_files))
+    # j <- j +1
+  }
+  rs <- rs1
+
+  return(rs)
+
+}
+
+sum_area <- function(cells){
+  area_tmp <- cells %>%
+    dplyr::group_by(id_cell)%>%
+    dplyr::summarise(area = mean(area))%>%
+    arrange(area, decreasing = T)
+  are <- sum(area_tmp$area)
+  return(are)
+
+}
+
+septa <- function(rs1){
+  data <- rs1
+  data$id_point <- paste0(data$x,";",data$y)
+  data$neib1 = data$neib2 <- NA
+  data$neib1_type = data$neib2_type <- NA
+
+  for(i in which(data$type == "aerenchyma")){
+    ne <- unique(data$id_cell[data$id_point == data$id_point[i] & data$id_cell != data$id_cell[i]])
+    data$neib1[i] <- ne[1]
+    data$neib1_type[i] <- data$type[data$id_cell == ne[1]][1]
+    data$neib2[i] <- ne[2]
+    data$neib2_type[i] <- data$type[data$id_cell == ne[2]][1]
+    if(!is.na(ne[3])){message("quadri point")
+      print(ne)}
+  }
+  # all triple points and all points next to cortex cells
+  must <- data[!is.na(data$neib2),]
+  must <- rbind(must, data[data$neib1_type != "aerenchyma",])
+
+  # add some noise
+  noise <- data[!(data$neib1_type != "aerenchyma" | !is.na(data$neib2)),]
+  noise_point <- unique(noise$id_point)
+  n_noise <- round(length(noise_point)*0.05)
+  noise_keep <- sample(noise_point, n_noise, replace=F)
+  noise <- noise[noise$id_point %in% noise_keep,]
+  must <- rbind(must, noise)
+
+  data <- data[data$type != "aerenchyma",]
+  data <- rbind(data,must)%>%
+    arrange(id_cell,atan)
+
+
+  data %>%
+    filter(type == "aerenchyma",
+           !is.na(neib1))%>%
+    ggplot()+
+    geom_polygon(aes(x,y, group = id_cell, fill = type),alpha = 0.6, colour = "white", data = rs1)+
+    geom_polygon(aes(x,y, group = id_cell, fill = type), colour = "white")+
+    geom_point(aes(x,y), colour = "red", data = data[!is.na(data$neib2),])+
+    geom_point(aes(x,y), colour = "blue", data = noise)+
+    coord_fixed()
+
+
+  return(data%>%select(colnames(rs1)))
+}
+
+pv_ready <- function(rs1){
+  data <- rs1
+
+  data$neib1 = data$neib2 = data$neib3 <- NA
+  data$neib1_type = data$neib2_type = data$neib3_type <- NA
+
+  for(i in 1:nrow(data)){
+    ne <- unique(data$id_cell[data$id_point == data$id_point[i] & data$id_cell != data$id_cell[i]])
+    data$neib1[i] <- ne[1]
+    data$neib1_type[i] <- as.character(data$type[data$id_cell == ne[1]][1])
+    data$neib2[i] <- ne[2]
+    data$neib2_type[i] <- as.character(data$type[data$id_cell == ne[2]][1])
+    data$neib3[i] <- ne[3]
+    data$neib3_type[i] <- as.character(data$type[data$id_cell == ne[3]][1])
+  }
+
+  junc_point <- data[!is.na(data$neib2) | (data$type == "epidermis" & !is.na(data$neib1)),]
+
+  data %>%
+    ggplot()+
+    geom_polygon(aes(x,y,fill = type, group = id_cell), colour = "white")+
+    geom_point(aes(x,y), colour = "red", data = junc_point)+
+    geom_point(aes(x,y), colour = "blue", data = data[data$id_point %!in% junc_point$id_point,])+
+    coord_fixed()+
+    theme_classic()
+
+  nodes <- data
+
+  nodes<- nodes%>%
+    dplyr::group_by(id_cell)%>%
+    dplyr::filter(!duplicated(id_point))%>%
+    dplyr::mutate(x1 = x,
+                  y1 = y,
+                  x2 = c(x[-1],x[1]),
+                  y2 = c(y[-1],y[1]),
+                  id_point2 = paste0(x2,";",y2),
+                  w_length = sqrt((x1-x2)^2+(y1-y2)^2))
+
+  on_go <- T
+  while(on_go){
+
+    last_point <- nodes%>%
+      select(id_cell, last(starts_with("id_point")),
+             last(starts_with("x")),
+             last(starts_with("y"))) # take last colmn
+    n <- colnames( last_point)
+    n <- unique(parse_number(n[-1])) # get the incremental value
+    colnames(last_point) <- c("id_cell","id_point", "x","y") # generic col names
+
+    last_point <- last_point%>%
+      dplyr::group_by(id_cell)%>%
+      dplyr::mutate(xx = ifelse(id_point %in% junc_point$id_point | id_point == "NA;NA",NA,c(x[-1],x[1])),
+                    yy = ifelse(id_point %in% junc_point$id_point | id_point == "NA;NA",NA,c(y[-1],y[1])),
+                    id_pointxy = paste0(xx,";",yy))%>%
+      ungroup()%>%
+      select(xx,yy,id_pointxy)
+
+    on_go <- length(which(last_point$id_pointxy != "NA;NA"))>0
+    c_name <- paste0(t(c("x", "y", "id_point")),n+1)
+    colnames(last_point) <- c(c_name)
+
+    nodes <- cbind(nodes%>%
+                     ungroup(),last_point)
+  }
+
+  nodes <- nodes%>%
+    dplyr::filter(id_point %in% junc_point$id_point,
+                  w_length > 0)# only one wall per junction point
+
+  nodes%>%
+    ggplot()+
+    geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), alpha = 0.5)+
+    geom_segment(aes(x = x2, xend = x3, y = y2, yend = y3), alpha = 0.5)+
+    geom_segment(aes(x = x3, xend = x4, y = y3, yend = y4), alpha = 0.5)+
+    coord_fixed()
+
+  # at this points all walls are double
+
+  nodus <- NULL
+  more <- nodes
+  k <- 2
+  while(nrow(more) > 0){
+    print(k)
+    last_x <- paste0("x",k) # the last point has coord_x
+    last_y <- paste0("y",k) # the last point has coord_y
+    tag_x <- paste0("x",k+1)  # the next possible points
+
+    tmp <- more[is.na(more[,tag_x]),] # if next point is "nan" then
+    tmp <- tmp%>%
+      # dplyr::group_by(id_cell) %>%
+      dplyr::mutate(xx = tmp[,last_x])%>%
+      dplyr::mutate(yy = tmp[,last_y])
+
+    deto <- tmp%>%select(-x1,-y1,-c(last_x),-c(last_y)) # remove points
+    h <- 1
+    # dealing with first and last point
+    tmp_h <- tmp%>%
+      mutate(xh = ifelse(x > xx, x, xx)) %>%
+      mutate(yh = ifelse(x > xx, y, yy)) %>%
+      mutate(yh = ifelse(x == xx, ifelse (y > yy, yy, y), yh))%>%
+      mutate(xlh = ifelse(x > xx, xx, x)) %>%
+      mutate(ylh = ifelse(x > xx, yy, y)) %>%
+      mutate(ylh = ifelse(x == xx, ifelse (y > yy, y, yy), ylh))%>%
+      select(xh,yh, xlh, ylh)
+    colnames(tmp_h) <- c(paste0("x",h),paste0("y",h), paste0("x",k),paste0("y",k))
+    print(c(paste0("x",h),paste0("y",h), paste0("x",k),paste0("y",k)))
+    deto <- cbind(deto, tmp_h)
+    if(k >= 4){
+      for(h in c(2:floor(k/2))){
+        h_x <- paste0("x",h)
+        lh_x <- paste0("x",k+1-h)
+        h_y <- paste0("y",h)
+        lh_y <- paste0("y",k+1-h)
+
+        tmp_h <- tmp %>%
+          mutate(hx = tmp[,h_x],
+                 hy = tmp[,h_y],
+                 lhx = tmp[,lh_x],
+                 lhy = tmp[,lh_y])%>%
+          mutate(xh = ifelse(x > xx, hx, lhx)) %>%
+          mutate(yh = ifelse(x > xx, hy, lhy)) %>%
+          mutate(xlh = ifelse(x > xx, lhx, hx)) %>%
+          mutate(ylh = ifelse(x > xx, lhy, hy))%>%
+          select(xh,yh,xlh,ylh)
+        deto <- deto %>% select(-c(h_x,h_y,lh_x,lh_y))
+        colnames(tmp_h) <- c(h_x,h_y,lh_x,lh_y)
+        print(c(h_x,h_y,lh_x,lh_y))
+        deto <- cbind(deto,tmp_h)
+      }
+    }
+    nodus <- rbind(nodus,deto)
+    k <- k + 1
+    more <- more[!is.na(more[,tag_x]),] # reduce what left for the next loop
+  }
+
+  # nodus%>%
+  #   filter(id_cell %in% c(1911, 1257,1256))%>%
+  #   ggplot()+
+  #   geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x2, xend = x3, y = y2, yend = y3), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x3, xend = x4, y = y3, yend = y4), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x4, xend = x5, y = y4, yend = y5), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x5, xend = x6, y = y5, yend = y6), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x6, xend = x7, y = y6, yend = y7), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x7, xend = x8, y = y7, yend = y8), alpha = 0.5, size = 1)+
+  #   geom_segment(aes(x = x8, xend = x9, y = y8, yend = y9), alpha = 0.5, size = 1)+
+  #   coord_fixed()
+
+  return(nodus)
 }
