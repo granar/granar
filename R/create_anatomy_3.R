@@ -24,6 +24,7 @@ sim$nodes%>%
   dplyr::summarise(n = n())%>%
   filter(n < 3)
 
+source("./R/write_anatomy_xml_pv.R")
 write_anatomy_xml(sim, "~/current_root_vine.xml")
 
 source("./R/aer_in_geom_xml.R")
@@ -242,7 +243,7 @@ create_anatomy_3 <- function(path = NULL,  # path to xml file
     wally$id_wall <- c(1:nrow(wally))
     walls <- merge(walls, wally, by= wall_length)
     walls <- walls %>%
-      filter(!duplicated(id_wall))%>% # 30/09/2020
+      # filter(!duplicated(id_wall))%>% # 30/09/2020
       arrange(sorting)
 
   }else{
@@ -295,7 +296,6 @@ create_anatomy_3 <- function(path = NULL,  # path to xml file
 
 }
 
-
 temp%>%
   ggplot()+
   geom_polygon(aes(x,y, group = id_cell, fill = type ), colour = "white")+
@@ -308,8 +308,17 @@ rs1%>%
   coord_fixed()+
   theme_classic()
 
+sim$walls_nodes%>%
+  filter(id_cell == 1039)%>%
+  ggplot()+
+  geom_segment(aes(x = x1, xend = x2,y = y1, yend = y2))+
+  geom_segment(aes(x = x2, xend = x3,y = y2, yend = y3))+
+  geom_segment(aes(x = x3, xend = x4,y = y3, yend = y4))+
+  coord_fixed()+
+  theme_classic()
+
 sim$nodes%>%
-  filter(is.na(type))%>%
+  filter(id_cell == 1039)%>%
   ggplot()+
   geom_polygon(aes(x,y, group = id_cell, fill = type ), colour = "white")+
   coord_fixed()+

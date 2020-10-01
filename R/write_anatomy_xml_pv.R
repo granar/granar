@@ -55,24 +55,30 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
   # Write the walls information
   xml <- paste0(xml, '\t<walls count="',length(unique(nodes_data$id_wall)),'">\n')
-  walls <- sim$walls
 
-  col_nam <- sim$walls%>%
-    select((starts_with("x") | starts_with("y")) & ends_with(as.character(c(0:9))))%>%
-    colnames()
+  walls <- sim$walls%>%
+    select((starts_with("x") | starts_with("y")) & ends_with(as.character(c(0:9))))
+  col_nam <- colnames(walls)
+
+  substr1(col_nam[nchar(col_nam) == 2], 1.5) <- "0"
+  col_nam <- paste0(substr1(col_nam, -1), "_", substr1(col_nam, 1))
+  colnames(walls) <- col_nam
+
+  sorted_name <- sort(col_nam)
+  walls <- walls%>%select(sorted_name)
+
   N <- max(parse_number(col_nam))
   begin <- tibble(tag1 = '\t\t<wall id="',
                 id_wall = sim$walls$id_wall-1,
                 tag2 = '" group="0" edgewall="false" >\n\t\t\t<points>\n')
   middle <- tibble(tag_x1 = '\t\t\t\t<point x="',
-                   x1 = sim$walls$x1,
+                   x1 = walls[,sorted_name[1]],
                    tag_y1 = '" y="',
-                   y1 = sim$walls$y1,
+                   y1 = walls[,sorted_name[2]],
                    tag_end1 = '"/>\n')
   for(k in 2:N){
     h <- k*2-1 # odd number
-    tmp_coord <- sim$walls%>%
-      select(all_of(col_nam[c(h,h+1)]))
+    tmp_coord <- walls[,sorted_name[c(h,h+1)]]
     tmp_middle <- tibble(tag_x = '\t\t\t\t<point x="',
                          x = tmp_coord[,1],
                          tag_y = '" y="',
@@ -112,3 +118,18 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
 
 }
+
+
+substr1 <- function(x,y) {
+  z <- sapply(strsplit(as.character(x),''),function(w) paste(na.omit(w[y]),collapse=''))
+  dim(z) <- dim(x)
+  return(z) }
+
+`substr1<-` <- function(x,y,value) {
+  names(y) <- c(value,rep('',length(y)-length(value)))
+  z <- sapply(strsplit(as.character(x),''),function(w) {
+    v <- seq(w)
+    names(v) <- w
+    paste(names(sort(c(y,v[setdiff(v,y)]))),collapse='') })
+  dim(z) <- dim(x)
+  return(z) }
