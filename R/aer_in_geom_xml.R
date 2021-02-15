@@ -1,6 +1,6 @@
 
 
-aer_in_geom_xml <- function(sim, path = "~/Thesis/2020-02 GRANAR_3D/MECHA_GRANAR/Projects/GRANAR/in/Maize_Geometry.xml"){
+aer_in_geom_xml <- function(sim, path = "./MECHA/Projects/GRANAR/in/Maize_Geometry.xml"){
   
   require(xml2)
   if (is.null(path)) {
@@ -16,10 +16,13 @@ aer_in_geom_xml <- function(sim, path = "~/Thesis/2020-02 GRANAR_3D/MECHA_GRANAR
   aer <- xml_children(xml_find_all(xml, "//aerenchyma_range"))
   
   # newbee <- 'aerenchyma id="0"'
-  new_siblings <- paste0('aerenchyma id="',id_aerenchyma,'"')
-  
-  xml_add_sibling(aer, new_siblings)
-  
+  if(length(sim$id_aerenchyma) == 0){
+    message("no aerenchyma")
+  }else{
+    new_siblings <- paste0('aerenchyma id="',id_aerenchyma,'"')
+    xml_add_sibling(aer, new_siblings)
+  }
+
   xml_remove(aer[1])
   
   path <- paste0(c(unlist(str_split(path, ".xml"))[1]),"_aer.xml")

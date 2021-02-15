@@ -1,4 +1,4 @@
-#' Write the root anatomy as an XML file.
+#' @title Write the root anatomy as an XML file.
 #'
 #' The structure of the XL file matches the one of CellSet
 #' @param sim The simulation results
@@ -6,7 +6,7 @@
 #' @keywords root
 #' @export
 #' @examples
-#' write_anatomy_xml()
+#' write_anatomy_xml(sim, path = "current_root.xml" )
 #'
 
 write_anatomy_xml <- function(sim = NULL, path = NULL){
@@ -23,8 +23,10 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   nodal <- nodal%>%
     select(-id_group)
 
-  cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 3),
-                           type = c("exodermis", "epidermis", "endodermis", "passage_cell",  "cortex", "stele", "xylem", "pericycle", "companion_cell", "phloem", "inter_cellular_space", "aerenchyma", "cambium"))
+  cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 6, 13),
+                           type = c("exodermis", "epidermis", "endodermis", "passage_cell",  "cortex",
+                                    "stele", "xylem", "pericycle", "companion_cell", "phloem",
+                                    "inter_cellular_space", "aerenchyma", "cambium", "metaxylem"))
 
   xml <- '<?xml version="1.0" encoding="utf-8"?>\n'
   xml <- paste0(xml, '<granardata>\n')
@@ -57,7 +59,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   xml <- paste0(xml, '\t<walls count="',length(unique(nodes_data$id_wall)),'">\n')
 
   walls <- sim$walls%>%
-    select((starts_with("x") | starts_with("y")) & ends_with(as.character(c(0:9))))
+    select(starts_with("x"), starts_with("y"))
   col_nam <- colnames(walls)
 
   substr1(col_nam[nchar(col_nam) == 2], 1.5) <- "0"
@@ -72,17 +74,17 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
                 id_wall = sim$walls$id_wall-1,
                 tag2 = '" group="0" edgewall="false" >\n\t\t\t<points>\n')
   middle <- tibble(tag_x1 = '\t\t\t\t<point x="',
-                   x1 = walls[,sorted_name[1]],
+                   x1 = round(walls[,sorted_name[1]],6),
                    tag_y1 = '" y="',
-                   y1 = walls[,sorted_name[2]],
+                   y1 = round(walls[,sorted_name[2]],6),
                    tag_end1 = '"/>\n')
   for(k in 2:N){
     h <- k*2-1 # odd number
     tmp_coord <- walls[,sorted_name[c(h,h+1)]]
     tmp_middle <- tibble(tag_x = '\t\t\t\t<point x="',
-                         x = tmp_coord[,1],
+                         x = round(tmp_coord[,1],6),
                          tag_y = '" y="',
-                         y = tmp_coord[,2],
+                         y = round(tmp_coord[,2],6),
                          tag_end = '"/>\n')
     tmp_col_name <- colnames(tmp_middle)
     colnames(tmp_middle) <- paste0(t(tmp_col_name), k)
@@ -118,7 +120,6 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
 
 }
-
 
 substr1 <- function(x,y) {
   z <- sapply(strsplit(as.character(x),''),function(w) paste(na.omit(w[y]),collapse=''))

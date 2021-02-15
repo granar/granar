@@ -1,6 +1,22 @@
-
-# io_function for create_anatomy_3
-
+#' @title io_function for create_anatomy
+#'
+#' List of function use in create_anatomy
+#' @param params table with params loaded from the param.xml
+#' @param all_layer layer table
+#' @param all_cells table with cellular data
+#' @param center center vector with xy coord of the center of the cross section
+#'
+#' @keywords root anatomy
+#' @author Adrien Heymans and Guillaume Lobet
+#' @export
+#' @import tidyverse
+#' @import plyr
+#' @import deldir
+#' @import alphahull
+#' @import sp
+#' @import purrr
+#'
+require("purrr")
 `%!in%` <- compose(`!`, `%in%`)
 
 cell_layer <- function(params){
@@ -219,14 +235,6 @@ rondy_cortex <- function(params, all_cells, center){
            euc < outer)%>%
     mutate(ID = paste0(x,y))%>%
     filter(!duplicated(ID))
-
-  rc1%>%
-    ggplot()+
-    geom_polygon(aes(x,y, group = id_cell, fill = type), colour = "white")+
-    #geom_point(aes(x,y,colour = factor(id_cell)), size = 2, alpha = 0.3, data = all_cortex)+
-    # geom_point(aes(x,y, colour = factor(id_group)), data = cor_frontier)+
-    coord_fixed()+
-    guides(colour = F)
 
   all_inter <- data.frame(angle = ifelse(rcin$y-center >= 0, acos((rcin$x - center)/rcin$euc),
                                          2*pi-acos((rcin$x - center)/rcin$euc)),
@@ -464,7 +472,7 @@ vascular <- function(all_cells, params, layers, center){
     #  xyl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "max_size" & params$name == "xylem"])/2,
     #                  d = params$value[params$type == "max_size" & params$name == "xylem"])
     all_xylem <- NULL
-    angle_seq <- seq(from = 0, to = (2*pi), by = (2 * pi) / n_xylem_files)
+    angle_seq <- seq(from = 0, to = (2*pi)-(2 * pi) / n_xylem_files, by = (2 * pi) / n_xylem_files)
     i <- 1
     for(angle in angle_seq){
       x <- center + (xyl$r[1] * cos(angle))
@@ -530,7 +538,7 @@ vascular <- function(all_cells, params, layers, center){
     # protoxylem vessels are built on the outer stele rim
     protoxyl <- data.frame(r = max(all_cells$radius[all_cells$type == "stele"]) - (params$value[params$type == "cell_diameter" & params$name == "stele"])/2,
                            d = params$value[params$type == "cell_diameter" & params$name == "stele"])
-    angle_seq_proto <- seq(from = 0, to = (2*pi), by = (2 * pi) / n_proto_xylem)
+    angle_seq_proto <- seq(from = 0, to = (2*pi)-(2 * pi) / n_proto_xylem, by = (2 * pi) / n_proto_xylem)
     for(angle in angle_seq_proto){
       x1 <- center + (protoxyl$r[1] * cos(angle))
       y1 <- center + (protoxyl$r[1] * sin(angle))

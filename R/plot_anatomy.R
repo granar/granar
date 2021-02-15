@@ -51,12 +51,12 @@ plot_anatomy <- function(sim=NULL,
     if(apo_bar != 0){
     if(apo_bar %in% c(2,4)){
       if(apo_bar == 4){
-        pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1,
+        pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1, colour = "red",
                                 data = sim$nodes%>%
                                   filter(type == "exodermis"))
 
       }
-      pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1,
+      pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1, colour = "red",
                               data = sim$nodes%>%
                                 filter(type == "endodermis"))
     }
@@ -70,14 +70,14 @@ plot_anatomy <- function(sim=NULL,
                d = (slo-SLO))
 
       if(apo_bar == 1){
-      pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1.2, data = nod_apo%>%
+      pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1.2, colour = "red", data = nod_apo%>%
                                 filter(type == "endodermis"
                                        ,d < 0.4 & d > - 0.4))
       }else{
-        pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1,
+        pl <- pl + geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1, colour = "red",
                                 data = sim$nodes%>%
                                   filter(type == "endodermis"))+
-                  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1.2, data = nod_apo%>%
+                  geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), size = 1.2, colour = "red", data = nod_apo%>%
                                 filter(type == "exodermis"
                                        ,d < 0.4 & d > - 0.4))
       }
