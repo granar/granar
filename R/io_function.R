@@ -1,22 +1,6 @@
-#' @title io_function for create_anatomy
-#'
-#' List of function use in create_anatomy
-#' @param params table with params loaded from the param.xml
-#' @param all_layer layer table
-#' @param all_cells table with cellular data
-#' @param center center vector with xy coord of the center of the cross section
-#'
-#' @keywords root anatomy
-#' @author Adrien Heymans and Guillaume Lobet
-#' @export
-#' @import tidyverse
-#' @import plyr
-#' @import deldir
-#' @import alphahull
-#' @import sp
-#' @import purrr
-#'
-require("purrr")
+
+# io_function for create_anatomy_3
+
 `%!in%` <- compose(`!`, `%in%`)
 
 cell_layer <- function(params){
@@ -647,7 +631,9 @@ vascular <- function(all_cells, params, layers, center){
     all_cells$id_group[all_cells$type == "xylem"] <- all_cells$id_group[all_cells$type == "xylem" & all_cells$id_group != 0] + k_max_cortex
 
 
-    all_cells <- make_pith(all_cells, params, center)
+    if(length(params$value[params$name == "pith" & params$type == "layer_diameter"]) > 0){
+      all_cells <- make_pith(all_cells, params, center)
+    }
 
   }
   all_cells %>%
