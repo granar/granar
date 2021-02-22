@@ -228,7 +228,7 @@ create_anatomy <- function(path = NULL,  # path to xml file
     nodes$type[nodes$type == "metaxylem" & nodes$area > tmp_m ] <- "stele"
   }
 
-
+ # comment
   if(paraview){
     walls <- pv_ready(rs1)
     wall_length <- walls%>%select(-x, -y, -xx, -yy)%>% # ends_with(as.character(c(0:9)))
