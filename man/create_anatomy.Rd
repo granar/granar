@@ -6,7 +6,13 @@
 
 This function creates a 2D root cross section anatomy based on anatomical features translated into the parameter of the model. It is the core of GRANAR.}
 \usage{
-create_anatomy(path = NULL, parameters = NULL, verbatim = F)
+create_anatomy(
+  path = NULL,
+  parameters = NULL,
+  verbatim = F,
+  maturity_x = F,
+  paraview = T
+)
 }
 \arguments{
 \item{path}{Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.}
