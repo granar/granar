@@ -65,7 +65,8 @@ create_anatomy <- function(path = NULL,  # path to xml file
     }
 
   }
-
+  
+  #Test
   # set initial time
   t_1 <- Sys.time()
   t1 <- proc.time()
