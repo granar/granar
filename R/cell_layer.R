@@ -26,6 +26,10 @@ cell_layer <- function(params){
   layers$n_layers[layers$name == "stele"] <- round((stele_diameter/2) / layers$cell_diameter[layers$name == "stele"]) #
   #layers$size[layers$name == "stele"] <- diam_stele
 
+  #Remove phloem if no layers
+  if(layers$n_layers[layers$name == "phloem"] == 0){
+    layers<-layers %>% filter(name != "phloem")
+  }
 
   # Get one row per actual cell layer
   all_layers <- NULL
