@@ -31,7 +31,7 @@ concavety <- function(data) {
         polygons <- suppressWarnings(SpatialPolygons(list(
           Polygons(list(Polygon(coordinates(subset_points))), ID = as.character(i)))))
         # Merge the polygons for the current id_cell
-        merged_polygon <- unionSpatialPolygons(polygons, IDs = i)
+        merged_polygon <- maptools::unionSpatialPolygons(polygons, IDs = i)
         # Add the merged polygon to the list
         merged_polygons[[i]] <- merged_polygon
       }
