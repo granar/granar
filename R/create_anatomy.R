@@ -50,7 +50,7 @@ create_anatomy <- function(path = NULL,  # path to xml file
       return(NULL)
     }
     # Quality control
-    to_find <- c("planttype", "randomness", "xylem", "phloem", "stele", "endodermis", "exodermis", "epidermis", "aerenchyma", "pericycle", "cortex")
+    to_find <- c("secondarygrowth", "planttype", "randomness", "xylem", "phloem", "stele", "endodermis", "exodermis", "epidermis", "aerenchyma", "pericycle", "cortex")
     for(tf in to_find){
       if (nrow(params[params$name == tf,]) == 0){
         warning(paste0("Could not find the '",tf,"' information in the parameter input"))
@@ -65,8 +65,8 @@ create_anatomy <- function(path = NULL,  # path to xml file
     }
 
   }
-  
-  
+
+
   # set initial time
   t_1 <- Sys.time()
   t1 <- proc.time()
