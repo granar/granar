@@ -5,13 +5,13 @@
 #' @keywords root layer
 #' @export
 #' @examples
-#' data_list <- cell_layer(params)
+#' # data_list <- cell_layer(params)
 #'
 
 cell_layer <- function(params){
   layers <- params %>%
     filter(type %in% c("cell_diameter","n_layers","order")) %>%
-    spread(type, value) %>%
+    tidyr::spread(type, value) %>%
     filter(!is.na(n_layers)) %>%
     arrange(order)
   stele_diameter <- params$value[params$name == "stele" & params$type == "layer_diameter"]

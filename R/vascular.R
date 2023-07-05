@@ -9,7 +9,7 @@
 #' @keywords root
 #' @export
 #' @examples
-#' all_cells <- vascular(all_cells, params, layers, center)
+#' # all_cells <- vascular(all_cells, params, layers, center)
 #'
 
 vascular <- function(all_cells, params, layers, center){
@@ -29,7 +29,7 @@ vascular <- function(all_cells, params, layers, center){
     xyl$d <- c(params$value[params$type == "max_size" & params$name == "xylem"], layers$cell_diameter[layers$name == "stele"])
 
     # Get the cells in between
-    fit <- lm(d ~ r, data=xyl)$coefficients
+    fit <- stats::lm(d ~ r, data=xyl)$coefficients
     rnew <- xyl$r[1]
     i <- 1
     rmax <- xyl$r[2]

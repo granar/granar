@@ -6,7 +6,6 @@
 #' @param center The cross-section center
 #' @keywords root
 #' @export
-#' @examples
 #'
 #'
 
@@ -28,11 +27,7 @@ cell_voro <- function(all_cells, vtess, center){
   rs2 <- rbind(rs2, data.frame(x = rs$x1, y=rs$y1, id_cell = rs$ind2))
 
   rs2 <- merge(rs2, all_cells[,c("id_cell", "type", "area", "dist", "angle", "radius", "id_layer", "id_group")], by="id_cell")
-  rs2 %>%
-    filter(type %in% c("cortex", "xylem", "inter_cellular_space"))%>%
-    ggplot()+
-    geom_point(aes(x,y, colour = factor(id_group), shape = type))+
-    coord_fixed()+guides(colour = F)
+
   rs2 <- rs2%>%filter(type != "outside")
 
   return(list(all_cells = all_cells, rs2 = rs2))

@@ -7,7 +7,7 @@
 #' @keywords root
 #' @export
 #' @examples
-#' all_cells <- make_pith(all_cells, params, center)
+#' # all_cells <- make_pith(all_cells, params, center)
 #'
 
 
@@ -40,9 +40,7 @@ make_pith <- function(all_cells, params, center){
 
     pith_layer <- layer_info(pith_layer)
     new_cells <- create_cells(all_layers = pith_layer, random_fact = 0.001)
-    new_cells%>%
-      ggplot()+geom_point(aes(x,y))+
-      coord_fixed()
+
     new_center <- mean(new_cells$x[new_cells$angle == 0], new_cells$y[new_cells$angle == 0])
 
     new_cells$x <- new_cells$x-new_center+center

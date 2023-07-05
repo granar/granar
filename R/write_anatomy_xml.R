@@ -6,7 +6,7 @@
 #' @keywords root
 #' @export
 #' @examples
-#' write_anatomy_xml(sim, path = "current_root.xml" )
+#' # write_anatomy_xml(sim, path = "current_root.xml" )
 #'
 
 write_anatomy_xml <- function(sim = NULL, path = NULL){
@@ -46,7 +46,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
   nodes_data <- merge(nodal, cellgroups, by="type")
 
-  temp_wall <- ddply(nodes_data, .(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="',
+  temp_wall <- plyr::ddply(nodes_data, plyr::.(id_cell, id_group), summarise, walls = paste0('\t\t\t\t<wall id="',
                                                                                 paste(id_wall-1, collapse='"/>\n\t\t\t\t<wall id="'),
                                                                                 '"/>\n'))
   xml <- paste0(xml, paste0('\t\t<cell id="',temp_wall$id_cell-1, '" group="', temp_wall$id_group, '" truncated="false" >\n',
@@ -69,7 +69,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   sorted_name <- sort(col_nam)
   walls <- walls%>%select(sorted_name)
 
-  N <- max(parse_number(col_nam))
+  N <- max(readr::parse_number(col_nam))
   begin <- tibble(tag1 = '\t\t<wall id="',
                 id_wall = sim$walls$id_wall-1,
                 tag2 = '" group="0" edgewall="false" >\n\t\t\t<points>\n')
@@ -94,7 +94,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
     mutate(tag_ending = '\t\t\t</points>\n\t\t</wall>\n')
   xml <- paste0(xml, paste0(t(taged_walls), collapse = ""))
   xml <- paste0(xml, '\t</walls>\n')
-  xml <- str_remove_all(xml, '\t\t\t\t<point x=\"NA\" y=\"NA\"/>\n')
+  xml <- stringr::str_remove_all(xml, '\t\t\t\t<point x=\"NA\" y=\"NA\"/>\n')
 
   # Write the cell group informations
   print(cellgroups)
@@ -121,10 +121,27 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
 
 }
 
+
+#' @title remove one str
+#'
+#' @param x string
+#' @param y pattern
+#' @keywords string
+#' @export
+#'
 substr1 <- function(x,y) {
-  z <- sapply(strsplit(as.character(x),''),function(w) paste(na.omit(w[y]),collapse=''))
+  z <- sapply(strsplit(as.character(x),''),function(w) paste(stats::na.omit(w[y]),collapse=''))
   dim(z) <- dim(x)
   return(z) }
+
+#' @title remove one str
+#'
+#' @param x string
+#' @param y pattern
+#' @param value something
+#' @keywords string
+#' @export
+#'
 
 `substr1<-` <- function(x,y,value) {
   names(y) <- c(value,rep('',length(y)-length(value)))

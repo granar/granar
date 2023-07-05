@@ -13,7 +13,7 @@ granar_metadata(path = NULL)
 To get the metadata out of the xml file created with write_anatomy_xml.
 }
 \examples{
-metadata <- granar_metadata("PATH TO THE XML FILE")
+metadata <- granar_metadata(path = system.file("extdata", "current_root.xml", package = "granar"))
 
 }
 \keyword{anatomy}

@@ -1,13 +1,13 @@
 Package: granar
 Type: Package
 Title: Generator of Root ANAtomy in R
-Version: 0.0.0.9000
-Author: Guillaume Lobet, Adrien Heymans
+Version: 0.0.1.0001
+Author: Guillaume Lobet, Adrien Heymans, Marco D'Agostino, Remy Schoppach
 Maintainer: The package maintainer <g.lobet@fz-juelich.de>
-Description: Generate a 2D representation of a root cross-section
+Description: Generate a 2D representation of a root cross-section.
 Depends: R (>= 3.3.1)
-License: GPL3
-Imports: xml2, tidyverse, plyr, deldir, alphahull, viridis, retistruct, Hmisc, sp, purrr
+License: GPL-3
+Imports: xml2, tidyverse, plyr, ggplot2, deldir, alphahull, viridis, retistruct, Hmisc, sp, purrr, dplyr, maptools, packcircles, geometry, rgl, stats
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.0

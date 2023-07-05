@@ -1,11 +1,9 @@
 #' @title Get the coordinate of the first cell center
 #'
 #'
-#' @param all_layer The layer dataframe
+#' @param all_layers The layer dataframe
 #' @keywords root layer
 #' @export
-#' @examples
-#' new_layers <- layer_info(all_layers)
 #'
 
 layer_info <- function(all_layers){

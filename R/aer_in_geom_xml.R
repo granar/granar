@@ -1,7 +1,14 @@
-
+#' @title Get the coordinate of the first cell center
+#'
+#'
+#' @param sim The sim output list
+#' @param path The geometry file for MECHA
+#' @keywords root mecha
+#' @export
+#'
 
 aer_in_geom_xml <- function(sim, path = "./MECHA/Projects/GRANAR/in/Maize_Geometry.xml"){
-  
+
   require(xml2)
   if (is.null(path)) {
     warning("No path specified")
@@ -12,9 +19,9 @@ aer_in_geom_xml <- function(sim, path = "./MECHA/Projects/GRANAR/in/Maize_Geomet
     id_aerenchyma <- sim$id_aerenchyma
   }
   xml <- read_xml(path)
-  
+
   aer <- xml_children(xml_find_all(xml, "//aerenchyma_range"))
-  
+
   # newbee <- 'aerenchyma id="0"'
   if(length(sim$id_aerenchyma) == 0){
     message("no aerenchyma")
@@ -24,9 +31,9 @@ aer_in_geom_xml <- function(sim, path = "./MECHA/Projects/GRANAR/in/Maize_Geomet
   }
 
   xml_remove(aer[1])
-  
-  path <- paste0(c(unlist(str_split(path, ".xml"))[1]),"_aer.xml")
-  
+
+  path <- paste0(c(unlist(stringr::str_split(path, ".xml"))[1]),"_aer.xml")
+
   write_xml(xml, path)
   return(TRUE)
 }

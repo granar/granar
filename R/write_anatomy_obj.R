@@ -7,7 +7,7 @@
 #' @keywords root anatomy
 #' @export
 #' @examples
-#' write_CT_OBJ(sim, path = "cross_section.obj)
+#' # write_CT_OBJ(sim, path = "cross_section.obj)
 #'
 
 write_CT_OBJ <- function(sim, path = "cross_section.obj", membrane = T){

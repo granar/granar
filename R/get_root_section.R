@@ -5,9 +5,9 @@
 #' @keywords root
 #' @export
 #' @examples
-#' root <- list()
-#' root$nodes <- get_root_section("PATH_TO_XLM_FILE")
-#' plot_anatomy(root, col = "type")
+#' # root <- list()
+#' # root$nodes <- get_root_section("PATH_TO_XLM_FILE")
+#' # plot_anatomy(root, col = "type")
 
 get_root_section <- function(path){
 

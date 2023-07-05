@@ -6,7 +6,7 @@
 #' @keywords root
 #' @export
 #' @examples
-#' all_cells = create_cells(all_layers, random_fact)
+#' # all_cells = create_cells(all_layers, random_fact)
 #'
 
 create_cells <- function(all_layers, random_fact){
@@ -29,14 +29,14 @@ create_cells <- function(all_layers, random_fact){
       x <- center + (radius * cos(angles))
       y <- center + (radius * sin(angles))
     }else if(all_layers$name[i] == "stele"){
-      x <- center + (radius * cos(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
-      y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)
+      x <- center + (radius * cos(angles)) + stats::runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
+      y <- center + (radius * sin(angles)) + stats::runif(all_layers$n_cell[i], -random_fact, random_fact)
     }else if(substr(all_layers$name[i], 1,6) == "cortex"){
-      x <- center + (radius * cos(angles)) + runif(all_layers$n_cell[i], -random_fact*3, random_fact*3)#* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
-      y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact*3, random_fact*3)##* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
+      x <- center + (radius * cos(angles)) + stats::runif(all_layers$n_cell[i], -random_fact*3, random_fact*3)#* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
+      y <- center + (radius * sin(angles)) + stats::runif(all_layers$n_cell[i], -random_fact*3, random_fact*3)##* runif(all_layers$n_cell[i], 1-(random_fact*2), 1+(random_fact*2))
     }else{
-      x <- center + (radius * cos(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
-      y <- center + (radius * sin(angles)) + runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
+      x <- center + (radius * cos(angles)) + stats::runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
+      y <- center + (radius * sin(angles)) + stats::runif(all_layers$n_cell[i], -random_fact, random_fact)#* runif(all_layers$n_cell[i], 1-random_fact, 1+random_fact)
     }
 
     all_cells <- rbind(all_cells, data.frame(

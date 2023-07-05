@@ -2,9 +2,9 @@
 % Please edit documentation in R/create_anatomy.R
 \name{create_anatomy}
 \alias{create_anatomy}
-\title{GRANAR: Generate root anatomy in R
+\title{Generate a root cross-section
 
-This function creates a 2D root cross section anatomy based on anatomical features translated into the parameter of the model. It is the core of GRANAR.}
+Functions to generate root cross section anatomy, based on global parameters, such as the mean size of cells and number of cell layers.}
 \usage{
 create_anatomy(
   path = NULL,
@@ -15,32 +15,30 @@ create_anatomy(
 )
 }
 \arguments{
-\item{path}{Path to the XML file containing the different parameters for the simulation. Not needed if 'parameter' is set.  Default = NULL.}
+\item{path}{The path to the input file}
 
-\item{parameters}{Table with the different parameters. Not needed if 'path' is set.  Default = NULL.}
+\item{parameters}{the input parameter table. Can be obtain by read_param_xml()}
 
-\item{verbatim}{Display textual information aboutt he simulation. Default = NULL.}
+\item{verbatim}{TRUE = Generate text to follow the simulation process/ FALSE = no text}
+
+\item{maturity_x}{TRUE = meta-xylem are labeled as stele cell /FALSE = no change in cell labeling (default)}
+
+\item{paraview}{TRUE = cell wall data is set to make 3D object/ FALSE = cell wall data is not compatible for 3D object}
 }
 \description{
-GRANAR: Generate root anatomy in R
+Generate a root cross-section
 
-This function creates a 2D root cross section anatomy based on anatomical features translated into the parameter of the model. It is the core of GRANAR.
+Functions to generate root cross section anatomy, based on global parameters, such as the mean size of cells and number of cell layers.
 }
 \examples{
+# Load input
+params <- read_param_xml(path = system.file("extdata", "root_monocot.xml", package = "granar"))
+# Generate anatomy
+root = create_anatomy(parameters = params)
+# Visualize the simulation output
+plot_anatomy(root)
+# Write the simulation output
+write_anatomy_xml(sim = root, path = system.file("extdata", "current_root.xml", package = "granar"))
 
-root_cross_section <- create_anatomy(path = "PATH_TO_XLM_FILE")
-
-# OR
-
-params <- read_param_xml(path = "PATH_TO_XLM_FILE")
-root_cross_section <- create_anatomy(parameters = params)
-
-# To visualize the result
-
-plot_anatomy(root_cross_section)
 }
-\author{
-Adrien Heymans and Guillaume Lobet
-}
-\keyword{anatomy}
 \keyword{root}

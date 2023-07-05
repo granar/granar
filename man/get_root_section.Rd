@@ -13,8 +13,8 @@ get_root_section(path)
 This function load the GRANAR file .XML.
 }
 \examples{
-root <- list()
-root$nodes <- get_root_section("PATH_TO_XLM_FILE")
-plot_anatomy(root, col = "type")
+# root <- list()
+# root$nodes <- get_root_section("PATH_TO_XLM_FILE")
+# plot_anatomy(root, col = "type")
 }
 \keyword{root}

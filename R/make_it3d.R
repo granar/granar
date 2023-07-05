@@ -1,9 +1,13 @@
-# GRANAR 3D
-# feb 2020
-# Heymans Adrien
+#' @title Make a 3D root of a few cells
+#'
+#'
+#' @param sim The sim output list
+#' @param n_cell The number of cell layer in the root axis
+#' @keywords root
+#' @export
+#'
 
 make_it3D <- function(sim, n_cell){
-require(geometry)
 
   col_vect <- c("lightgoldenrod", "darkgoldenrod")
   col_vect <- rep(col_vect, n_cell)
@@ -16,13 +20,13 @@ require(geometry)
     te$z  <- runif(1,-0.02,0.05)
     len <- te$z+0.1+runif(1,-0.05,0.05)
     if(is.xylem){
-      te$z  <- runif(1,-0.1,-0.05)
+      te$z  <- stats::runif(1,-0.1,-0.05)
       len <- te$z+1+runif(1,-0.1,0.1)
     }
     te <- rbind(te, te%>%mutate(z = len))
     te <- as.matrix(te)
-    A.surf <- t(convhulln(te))
-    A.vol <- convhulln(te, output.options = "FA")$vol
+    A.surf <- t(geometry::convhulln(te))
+    A.vol <- geometry::convhulln(te, output.options = "FA")$vol
     tmp <- tibble(x1 = te[A.surf,1], x2 = te[A.surf,2], x3 = te[A.surf,3], col=col_vect[1],
                   id_cross = i, axis = 1, ID = k, volume = A.vol, type = sim$nodes$type[sim$nodes$id_cell==i][1],
                   area_cross = sim$nodes$area[sim$nodes$id_cell == i][1])
@@ -38,8 +42,8 @@ require(geometry)
       }
       te <- rbind(te, te%>%mutate(z = len))
       te <- as.matrix(te)
-      A.surf <- t(convhulln(te))
-      A.vol <- convhulln(te, output.options = "FA")$vol
+      A.surf <- t(geometry::convhulln(te))
+      A.vol <- geometry::convhulln(te, output.options = "FA")$vol
       tmp <- tibble(x1 = te[A.surf,1], x2 = te[A.surf,2], x3 = te[A.surf,3], col=col_vect[l],
                     id_cross = i, axis = l, ID = k, volume = A.vol, type = sim$nodes$type[sim$nodes$id_cell==i][1],
                     area_cross = sim$nodes$area[sim$nodes$id_cell == i][1])

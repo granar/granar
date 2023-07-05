@@ -7,7 +7,7 @@
 #' @keywords root
 #' @export
 #' @examples
-#' all_cells <- rondy_cortex(params, all_cells, center)
+#' # all_cells <- rondy_cortex(params, all_cells, center)
 #'
 
 rondy_cortex <- function(params, all_cells, center){
@@ -91,10 +91,6 @@ rondy_cortex <- function(params, all_cells, center){
     all_inter <- all_inter%>%
       filter(!duplicated(id_point))%>%
       select(-id_point)
-    all_inter%>%
-      ggplot()+
-      geom_point(aes(x,y))+
-      coord_fixed()
   }
 
   nodes <- vertex(rc1%>%filter(type == "cortex"))

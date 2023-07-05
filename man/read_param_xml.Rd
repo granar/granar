@@ -13,7 +13,7 @@ read_param_xml(path = NULL)
 Read the parameters for GRANAR from an XML file
 }
 \examples{
-read_param_xml()
+# read_param_xml()
 
 }
 \keyword{granar}

@@ -4,7 +4,7 @@
 \alias{plot_anatomy}
 \title{Plot root anatomy}
 \usage{
-plot_anatomy(sim = NULL, col = "type", leg = T, apo_bar = 2)
+plot_anatomy(sim = NULL, col = "type", leg = T, apo_bar = 0, phi_thck = 0)
 }
 \arguments{
 \item{sim}{the simulation objkect, returned by 'create_anatomy.R'}
@@ -14,12 +14,16 @@ plot_anatomy(sim = NULL, col = "type", leg = T, apo_bar = 2)
 \item{leg}{Display the legend; Default= TRUE}
 
 \item{apo_bar}{Display apolastic barrier when col = "segment". 1 endodermal casparian strip, 2 fully suberized endodermis, 3 fully suberized endodermis and an exodermal casparian strip, and 4 exodermis and endodermis are fully suberized.}
+
+\item{phi_thck}{Display phi thickening on the defined number of layer after the endodermis}
 }
 \description{
 This function plot the results of a 2D root cross section anatomy simulation
 }
 \examples{
-create_anatomy("PATH_TO_XLM_FILE")
+# sim = create_anatomy(path = "PATH_TO_XLM_FILE")
+# plot_anatomy(sim, col = "type")
+# plot_anatomy(sim, col = "segment", apo_bar = 3)
 
 }
 \keyword{root}

@@ -16,5 +16,9 @@ write_CT_OBJ(sim, path = "cross_section.obj", membrane = T)
 \description{
 write a .obj from the generated root cross section
 }
+\examples{
+# write_CT_OBJ(sim, path = "cross_section.obj)
+
+}
 \keyword{anatomy}
 \keyword{root}

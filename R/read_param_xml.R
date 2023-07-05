@@ -6,7 +6,7 @@
 #' @export
 #' @import xml2
 #' @examples
-#' read_param_xml()
+#' # read_param_xml()
 #'
 
 read_param_xml <- function(path = NULL){
