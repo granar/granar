@@ -23,7 +23,7 @@ write_anatomy_xml <- function(sim = NULL, path = NULL){
   nodal <- nodal%>%
     select(-id_group)
 
-  cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 6, 13),
+  cellgroups <- data.frame(id_group = c(1, 2, 3, 3, 4, 5, 13, 16, 12, 11, 4, 4, 11, 13),
                            type = c("exodermis", "epidermis", "endodermis", "passage_cell",  "cortex",
                                     "stele", "xylem", "pericycle", "companion_cell", "phloem",
                                     "inter_cellular_space", "aerenchyma", "cambium", "metaxylem"))
