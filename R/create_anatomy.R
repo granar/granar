@@ -120,6 +120,9 @@ create_anatomy <- function(path = NULL,  # path to xml file
     all_cells <- new_cells
   }
 
+  # Change parenchyma into stele, otherwise it will have serious problems later in MECHA
+  all_cells$type[all_cells$type == "parenchyma"] = "stele"
+
   # Get the voronio data
   vtess <- deldir(all_cells$x, all_cells$y, digits = 8)
   if(is.null(vtess)){return(NULL)}
