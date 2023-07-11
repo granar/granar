@@ -1,4 +1,7 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3051109.svg)](https://doi.org/10.5281/zenodo.3051109)
+
+V1.1 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8133971.svg)](https://doi.org/10.5281/zenodo.8133971)
+
+v0.9 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3051109.svg)](https://doi.org/10.5281/zenodo.3051109)
 
 # Generator of Root ANAtomy in R [GRANAR]
 
