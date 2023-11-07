@@ -18,7 +18,7 @@ pack_xylem <- function(all_cells, params, center){
     k_max_cortex <- max(all_cells$id_group[all_cells$type == "cortex"])
   }else{k_max_cortex  <- 0}
 
-  nX <- params$value[params$name == "xylem" & params$type == "n_cells"]
+  nX <- params$value[params$name == "xylem" & params$type == "n_files"]
   xylarea <- nX* pi * (params$value[params$name == "xylem" & params$type == "cell_diameter"]/2)^2
 
   # stele diameter = before pericycle
