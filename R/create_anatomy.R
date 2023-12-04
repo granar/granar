@@ -13,7 +13,6 @@
 #' @import tidyverse
 #' @import deldir
 #' @import sp
-#' @import maptools
 #' @import packcircles
 #' @export
 #' @examples
