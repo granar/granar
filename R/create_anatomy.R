@@ -12,7 +12,7 @@
 #' @import dplyr
 #' @import tidyverse
 #' @import deldir
-#' @import sp
+#' @import sf
 #' @import packcircles
 #' @export
 #' @examples
@@ -171,10 +171,12 @@ create_anatomy <- function(path = NULL,  # path to xml file
       rs1 <- root_hair(rs1, params, center)
     }
   }
+  if(verbatim) message("root hair, done")
 
   tt <- proc.time()
   # outputing the inputs
-  output <- data.frame(io = "input", name = params$name, type = params$type, value = params$value)
+  output <- data.frame(io = "input", name = params$name, type = params$type,
+                       value = params$value)
 
   if(length(which(is.na(rs1$x)))>0 & verbatim){
     print("NA in cell coordinate ... ")

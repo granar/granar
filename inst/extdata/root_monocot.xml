@@ -3,6 +3,7 @@
 	<!-- General parameters -->
 	<planttype param="1" /> <!-- 1 = monocot / 2 = dicot -->
 	<randomness param="2" /> <!-- 0 = no radomness / 3 = high randomness-->
+	<secondarygrowth param="0"/>
 	
 	<!-- Stele layers -->
 	<!-- Order defines the ranking of the tissue radialy -->

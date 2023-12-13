@@ -35,16 +35,7 @@ fuzze_inter <- function(rs1){
         itm <- bou
 
         if(itm[1] %in% done){next()}
-        # print(bou)
         tmp_cell <- space[space$id_cell %in% itm, ]
-        for (i in unique(tmp_cell$id_cell)) {
-          tmp <- tmp_cell[tmp_cell$id_cell == i,]
-          tmp <- tmp[!is.na(tmp$x), ]
-          pol <- Polygon(tmp[, c("x","y")])
-          tmp_cell$area[tmp_cell$id_cell == i] <-  pol@area
-        }
-
-        tmp_cell <- tmp_cell[tmp_cell$area > 0, ]
         if(nrow(tmp_cell) > 0){
           tmp_cell <- tmp_cell%>%
             dplyr::group_by(id_cell)%>%
