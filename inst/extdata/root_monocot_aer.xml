@@ -3,6 +3,7 @@
 	<!-- General parameters -->
 	<planttype param="1" /> <!-- 1 = monocot / 2 = dicot -->
 	<randomness param="2" /> <!-- 0 = no radomness / 3 = high randomness-->
+	<secondarygrowth param="0"/> <!-- 0 = no secondary growth / 1 = sec growth -->
 	
 	<!-- Stele layers -->
 	<!-- Order defines the ranking of the tissue radialy -->
@@ -24,7 +25,7 @@
 	<!-- n_files = number of metaxylem elements -->
 	<!-- ratio = ratio of proto vs. metaxylem elements -->
 	<xylem max_size="0.035" n_files="5" order="1.5" ratio ="3.3" />
-	<phloem max_size="0.01" n_files="3" n_layer = "0"/>
+	<phloem max_size="0.01" n_files="3" n_layers="0"/>
 	
 	<!-- Other cell types -->
 	<aerenchyma proportion="0.45" n_files="12" type = "1" /> <!-- 1 = strip / 2 = patch -->
