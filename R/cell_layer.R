@@ -27,9 +27,12 @@ cell_layer <- function(params){
   #layers$size[layers$name == "stele"] <- diam_stele
 
   #Remove phloem if no layers
-  if(layers$n_layers[layers$name == "phloem"] == 0){
-    layers<-layers %>% filter(name != "phloem")
+  if("phloem" %in% unique(layers$name)){
+    if(layers$n_layers[layers$name == "phloem"] == 0){
+      layers<-layers %>% filter(name != "phloem")
+    }
   }
+  
 
   # Get one row per actual cell layer
   all_layers <- NULL
