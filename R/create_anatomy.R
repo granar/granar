@@ -202,6 +202,15 @@ create_anatomy <- function(path = NULL,  # path to xml file
     if(verbatim) message("for monocot, if xylem is above average, it is labeled as metaxylem")
     rs1$type[rs1$type == "xylem" & rs1$area > mX] <- "metaxylem"
   }
+
+
+  if(length(params$value[params$name == "epidermis" & params$type == "remove"])>0){
+    if(params$value[params$name == "epidermis" & params$type == "remove"]){
+      all_cells = all_cells%>%filter(type != "epidermis")
+      rs1 = rs1%>%filter(type != "epidermis")
+    }
+  }
+
   one_cells <- rs1%>%
     filter(!duplicated(id_cell))# , !duplicated(type), !duplicated(id_group), !duplicated(area)
 
