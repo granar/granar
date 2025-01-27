@@ -1,0 +1,78 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  GRANAR, a Computational Tool to Better Understand the
+  Functional Importance of Monocotyledon Root Anatomy
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Adrien
+    family-names: Heymans
+    orcid: 'https://orcid.org/0000-0003-3685-2240'
+    affiliation: 'Earth and Life Institute, UCLouvain, Belgium'
+  - given-names: Valentin
+    family-names: Couvreur
+    orcid: 'https://orcid.org/0000-0002-1087-3978'
+    affiliation: 'Earth and Life Institute, UCLouvain, Belgium'
+  - given-names: Therese
+    family-names: LaRue
+    affiliation: >-
+      Department of Biology, Stanford University, Stanford,
+      California
+  - family-names: Paez-Garcia
+    given-names: Ana
+    orcid: 'https://orcid.org/0000-0002-2006-8681'
+    affiliation: 'Noble Research Institute, LLC, Ardmore, Oklahoma'
+  - given-names: Guillaume
+    family-names: Lobet
+    orcid: 'https://orcid.org/0000-0002-5883-4572'
+    affiliation: 'Earth and Life Institute, UCLouvain, Belgium'
+identifiers:
+  - type: doi
+    value: 10.1104/pp.19.00617
+    description: Journal article
+  - type: doi
+    value: 10.5281/zenodo.3051109
+    description: v0.9
+repository-code: 'https://github.com/granar/granar/tree/master'
+url: 'https://granar.github.io/'
+abstract: >-
+  Root hydraulic conductivity is a limiting factor along the
+  water pathways between the soil and the leaf, and root
+  radial conductivity is itself defined by cell-scale
+  hydraulic properties and anatomical features. However,
+  quantifying the influence of anatomical features on the
+  radial conductivity remains challenging due to complex
+  time-consuming experimental procedures. We present an
+  open-source computational tool, the Generator of Root
+  Anatomy in R (GRANAR; http://granar.github.io), that can
+  be used to rapidly generate digital versions of contrasted
+  monocotyledon root anatomical networks. GRANAR uses a
+  limited set of root anatomical parameters, easily acquired
+  with existing image analysis tools. The generated
+  anatomical network can then be used in combination with
+  hydraulic models to estimate the corresponding hydraulic
+  properties. We used GRANAR to reanalyze large maize (Zea
+  mays) anatomical datasets from the literature. Our model
+  was successful at creating virtual anatomies for each
+  experimental observation. We also used GRANAR to generate
+  anatomies not observed experimentally over wider ranges of
+  anatomical parameters. The generated anatomies were then
+  used to estimate the corresponding radial conductivities
+  with the hydraulic model MECHA (model of explicit
+  cross-section hydraulic architecture). Our simulations
+  highlight the large importance of the width of the stele
+  and the cortex. GRANAR is a computational tool that
+  generates root anatomical networks from experimental data.
+  It enables the quantification of the effect of individual
+  anatomical features on the root radial conductivity.
+keywords:
+  - Root cross-section
+  - Root hydraulic
+license: GPL-3.0
+version: v0.9
+date-released: '2019-05-20'
