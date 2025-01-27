@@ -1,6 +1,6 @@
 # Generator of Root ANAtomy in R (GRANAR)
 
-v1.1 --> ![DOI V1.1](https://zenodo.org/badge/DOI/10.5281/zenodo.8133971.svg)
+v1.1 --> [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8133971.svg)](https://doi.org/10.5281/zenodo.8133971)
 
 GRANAR is an open-source R package designed to generate root cross-section anatomical networks with ease. Using global parameters, such as mean cell size and number of cell layers, GRANAR simplifies the creation and visualization of virtual monocotyledon root anatomies. This tool is particularly useful for researchers studying root hydraulic conductivity and the impact of anatomical features on water transport.
 
@@ -83,4 +83,4 @@ See the [LICENSE](https://github.com/granar/granar/blob/main/LICENSE) file for d
 
 ## Versioning
 
->  v0.9 --> ![DOI V0.9](https://zenodo.org/badge/DOI/10.5281/zenodo.3051109.svg)
+>  v0.9 --> [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3051109.svg)](https://doi.org/10.5281/zenodo.3051109)
