@@ -6,9 +6,9 @@ title: >-
   GRANAR, a Computational Tool to Better Understand the
   Functional Importance of Monocotyledon Root Anatomy
 message: >-
-  If you use this software, please cite it using the
+  If you use this software, please cite the related journal article using the
   metadata from this file.
-type: software
+type: article
 authors:
   - given-names: Adrien
     family-names: Heymans
