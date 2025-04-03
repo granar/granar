@@ -23,24 +23,7 @@ plot_anatomy <- function(sim=NULL,
                          apo_bar = 0,
                          phi_thck = 0){
 
-  pl <- ggplot(sim$nodes) +
-    geom_polygon(aes_string("x", "y", group="id_cell", fill=col), colour="white") +
-    theme_classic() +
-    coord_fixed() +
-    theme(axis.line=element_blank(),
-          axis.text.x=element_blank(),
-          axis.text.y=element_blank(),
-          axis.ticks=element_blank(),
-          axis.title.x=element_blank(),
-          axis.title.y=element_blank())
 
-  if(!col %in% c("type", "cell_group")){
-    pl <- pl + viridis::scale_fill_viridis()
-  }
-
-  if(!leg){
-    pl <- pl + theme(legend.position="none")
-  }
   if(col == "segment"){
     pl <- ggplot()+
       geom_segment(aes(x = x1, xend = x2, y = y1, yend = y2), data = sim$nodes)+
@@ -96,6 +79,25 @@ plot_anatomy <- function(sim=NULL,
                                     type != "inter_cellular_space",
                                     type != "aerenchyma",
                                     d < 0.4 & d > - 0.4 | d > 2.8 | d < -2.8))
+    }
+  }else{
+    pl <- ggplot(sim$nodes) +
+      geom_polygon(aes_string("x", "y", group="id_cell", fill=col), colour="white") +
+      theme_classic() +
+      coord_fixed() +
+      theme(axis.line=element_blank(),
+            axis.text.x=element_blank(),
+            axis.text.y=element_blank(),
+            axis.ticks=element_blank(),
+            axis.title.x=element_blank(),
+            axis.title.y=element_blank())
+
+    if(!col %in% c("type", "cell_group")){
+      pl <- pl + viridis::scale_fill_viridis()
+    }
+
+    if(!leg){
+      pl <- pl + theme(legend.position="none")
     }
   }
 

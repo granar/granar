@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<granar>
+	<!-- General parameters -->
+	<planttype param="2" /> <!-- 1 = monocot / 2 = dicot -->
+	<randomness param="2" /> <!-- 0 = no radomness / 3 = high randomness-->
+	<secondarygrowth param="0"/> <!-- 0 = no secondary growth / 1 = sec growth -->
+	
+	<!-- Stele layers -->
+	<!-- Order defines the ranking of the tissue radialy -->
+	<!-- cell_diameter = cell width [mm]; layer_diameter = diameter of the stele  -->
+	<stele cell_diameter="0.0063" n_layers="1" layer_diameter = "0.1" order="1"/>
+	<pericycle cell_diameter="0.009" n_layers="1"  order="2"/>
+	<endodermis cell_diameter="0.015" n_layers="1"  order="3"/>
+	<!-- Cortex layers -->
+	<!-- n_layer = number of layer -->
+	<cortex cell_diameter="0.025" n_layers="2"  order="5"/>
+	<exodermis cell_diameter="0.018" n_layers="1" order="7"/>
+	<epidermis cell_diameter="0.01" n_layers="1" order="8"/>
+
+	<!-- Vessels-->
+	<!-- max_size = maximum cell diameter  [mm] -->
+	<!-- n_files = number of metaxylem elements -->
+	<!-- ratio = ratio of proto vs. metaxylem elements -->
+	<xylem max_size="0.035" n_files="2" order="1.5" ratio ="3.3" />
+	<phloem max_size="0.01" n_files="3" n_layers = "0"/>
+	
+	<!-- Other cell types -->
+	<aerenchyma proportion="0.0" n_files="0" type = "1" /> <!-- 1 = strip / 2 = patch -->
+	<hair length = "0.07" n_files="3" />
+	<!-- inter_cellular_space size= "0.002" ratio= "0.01" -->
+</granar>
