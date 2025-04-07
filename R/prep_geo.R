@@ -5,7 +5,7 @@
 #' Add cell wall thickness
 #' smooth cell corners
 #' geo file can be use in GMSH (Require GMSH https://gmsh.info/)
-#' @param cross_section The nodes dataframe of the cross section
+#' @param cross_section The nodes dataframe of the cross section, the coordinates should be in micron
 #' @param cell_wall_thickness the inner wall thickness data frame per cell type
 #' @param corner_smoothing smoothing algorithm for the cells, can be cell type specific
 #' @keywords cell wall GMSH Geo
@@ -15,7 +15,7 @@
 #'
 #'
 
-prep_geo <- function(cross_section, cell_wall_thickness, corner_smoothing){
+prep_geo <- function(cross_section, cell_wall_thickness = 0.2, corner_smoothing=0.5){
 
   if(length(cell_wall_thickness)==1){
     cell_wall_thickness = tibble(type = "default", value = cell_wall_thickness)
@@ -44,7 +44,7 @@ prep_geo <- function(cross_section, cell_wall_thickness, corner_smoothing){
     my_multilinestring = sf::st_sf(geom = sf::st_sfc(sf_linestring), crs = 2056)
     r_poly <-  sf::st_union(my_multilinestring)%>% sf::st_polygonize() %>% sf::st_collection_extract()
     r_poly_smooth <- smoothr::smooth(r_poly, method = "ksmooth",
-                                     smoothness = corner_smoothing$value[corner_smoothing$type == wall_type])
+                                     smoothness = corner_smoothing$value[corner_smoothing$type == wall_type][1])
     shrunken_polygon <- st_buffer(r_poly_smooth,
                                   -cell_wall_thickness$value[cell_wall_thickness$type == wall_type])
     shrunken_polygon  <- st_simplify(shrunken_polygon, dTolerance = 0.1, preserveTopology = TRUE)
@@ -77,7 +77,7 @@ prep_geo <- function(cross_section, cell_wall_thickness, corner_smoothing){
   final_polygon <- st_union(polygons_sfc)
 
   if(length(corner_smoothing$value[corner_smoothing$type == "outerwall"])==0){
-    corner_smoothing = rbind(corner_smoothing, tibble(type == "outerwall",
+    corner_smoothing = rbind(corner_smoothing, tibble(type = "outerwall",
                                                       value = corner_smoothing$value[corner_smoothing$type == "default"]))
   }
   final_polygon <- smoothr::smooth(final_polygon, method = "ksmooth",
@@ -95,6 +95,8 @@ prep_geo <- function(cross_section, cell_wall_thickness, corner_smoothing){
 
   return(rbind (wall, root_cell)%>%mutate(res = 1))
 }
+
+`%!in%` <- compose(`!`, `%in%`)
 
 
 
