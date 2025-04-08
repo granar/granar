@@ -42,7 +42,18 @@ prep_geo <- function(cross_section, cell_wall_thickness = 0.2, corner_smoothing=
 
     sf_linestring <- sf::st_sfc(st_linestring(as.matrix(rbind(tmp[, c("x", "y")],tmp[1, c("x", "y")]))), crs = 2056)
     my_multilinestring = sf::st_sf(geom = sf::st_sfc(sf_linestring), crs = 2056)
-    r_poly <-  sf::st_union(my_multilinestring)%>% sf::st_polygonize() %>% sf::st_collection_extract()
+
+    # Union and polygonize the multilinestring
+    poly_geom <- sf::st_union(my_multilinestring) %>% sf::st_polygonize()
+
+    # Check if the resulting geometry collection is empty
+    if (!sf::st_is_empty(poly_geom)) {
+      r_poly <- poly_geom %>% sf::st_collection_extract()
+    } else {
+      message("Empty geometry — skipping.")
+      next
+    }
+
     r_poly_smooth <- smoothr::smooth(r_poly, method = "ksmooth",
                                      smoothness = corner_smoothing$value[corner_smoothing$type == wall_type][1])
     shrunken_polygon <- st_buffer(r_poly_smooth,
@@ -67,21 +78,37 @@ prep_geo <- function(cross_section, cell_wall_thickness = 0.2, corner_smoothing=
     k = k+1
   }
 
+
+
   # Convert list to sf object
   polygons_sf <- do.call(rbind, lapply(seq_along(polygons_list), function(i) {
-    st_sf(id = i, geometry = st_geometry(polygons_list[[i]]))
+    st_sf(id = i, geometry = st_geometry(polygons_list[[i]][1]))
   }))
+
+  # # Plot with ggplot2
+  # pl = ggplot(polygons_sf) +
+  #   geom_sf(aes(fill = id), color = "black", alpha = 0.5) +
+  #   viridis::scale_fill_viridis() +
+  #   theme_minimal() +
+  #   ggtitle("Polygons from polygons_list")
+  # print(pl)
 
   polygons_sfc <- st_as_sfc(polygons_sf)
   # Perform the union operation
-  final_polygon <- st_union(polygons_sfc)
+  final_polygon_raw <- st_union(polygons_sfc)
 
   if(length(corner_smoothing$value[corner_smoothing$type == "outerwall"])==0){
     corner_smoothing = rbind(corner_smoothing, tibble(type = "outerwall",
                                                       value = corner_smoothing$value[corner_smoothing$type == "default"]))
   }
-  final_polygon <- smoothr::smooth(final_polygon, method = "ksmooth",
-                                   smoothness = corner_smoothing$value[corner_smoothing$type == "outerwall"])
+  check = F
+  while(check){
+    final_polygon <- smoothr::smooth(final_polygon_raw, method = "ksmooth",
+                                     smoothness = corner_smoothing$value[corner_smoothing$type == "outerwall"])
+    check = any(is.na((sf::st_coordinates(final_polygon)[,c(1,2)])))
+    corner_smoothing$value[corner_smoothing$type == "outerwall"] = corner_smoothing$value[corner_smoothing$type == "outerwall"]*1.1
+  }
+  final_polygon <- sf::st_make_valid(final_polygon)
   simplified_polygon <- st_simplify(final_polygon, dTolerance = 0.1, preserveTopology = TRUE)
   # Get the coordinates
   wall_coords <- sf::st_coordinates(simplified_polygon)[, 1:2]
@@ -95,6 +122,8 @@ prep_geo <- function(cross_section, cell_wall_thickness = 0.2, corner_smoothing=
 
   return(rbind (wall, root_cell)%>%mutate(res = 1))
 }
+
+`%!in%` <- compose(`!`, `%in%`)
 
 `%!in%` <- compose(`!`, `%in%`)
 
