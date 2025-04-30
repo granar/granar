@@ -12,6 +12,7 @@ GRANAR is an open-source R package designed to generate root cross-section anato
 - **Visualize Results**: Easily plot and explore generated anatomies.
 - **Save & Share Outputs**: Export anatomical data for further analysis.
 - **Integration with Hydraulic Models**: Seamlessly use GRANAR outputs with tools like [MECHA](https://github.com/MECHARoot/MECHA) for hydraulic property estimations.
+- **Integration with Biomechanics Models**: GRANAR outputs can be coupled with tools like [BVPy](https://mosaic.gitlabpages.inria.fr/bvpy/) for stress/strain and deformation pattern.
 
 ## Installation
 
